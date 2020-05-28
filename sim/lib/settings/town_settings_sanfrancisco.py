@@ -45,10 +45,10 @@ daily_tests_unscaled = 1200
 # Source for US: https://www.census.gov/data/tables/2019/demo/families/cps-2019.html
 household_info = {
     'size_dist' : [28.37, 34.51, 15.07, 12.76, 5.78, 2.26, 1.25], # distribution of household sizes (1-7 people) from Table H1
-    'soc_role' : { # simplification based on the bureau data
-        'children' : [1, 1, 1, 0, 0, 0, 0, 0], # age groups 0,1,2 (0-19) can be children 
-        'parents' : [0, 0, 0, 1, 1, 1, 0, 0], # age groups 3,4,5 (20-59) can be parents (here "parents" does not mean they must have kids. Maybe "householder" is more precise)
-        'elderly' : [0, 0, 0, 0, 0, 0, 1, 1] # age groups 6,7 (60+) are elderly (householder in a household of size 1 or 2 without children living with them)
+    'soc_role' : { # Each element is a probability. Each column should add up to 1. Simplification based on the bureau data
+        'children' : [1, 1, 1, 0, 0, 0, 0, 0], # age groups 0,1,2 (0-19) can be children (must be in a household with "parents")
+        'parents' : [0, 0, 0, 1, 1, 1, 0, 0], # age groups 3,4,5 (20-59) can be parents (They do not necessarily have kids)
+        'elderly' : [0, 0, 0, 0, 0, 0, 1, 1] # age groups 6,7 (60+) are elderly (live in a household of size 1 or 2 without children living with them)
     }
 }
 
