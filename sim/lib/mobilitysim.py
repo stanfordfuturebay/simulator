@@ -9,7 +9,6 @@ import json
 
 from interlap import InterLap
 
-TO_HOURS = 24.0
 
 # Tuple representing a vist of an individual at a site
 # Note: first two elements must be('t_from', 't_to_shifted') to match contacts using `interlap`
@@ -86,7 +85,7 @@ def _simulate_individual_synthetic_trace(indiv, num_sites, max_time, home_loc, s
         t += rd.expovariate(tot_mob_rate)
         # Increment id
         id += 1
-
+    
     return data
 
 @numba.njit
@@ -103,18 +102,18 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
     # Site proximity to individual's home
     site_dist = site_dist**2
     site_prox = 1/(1+site_dist)
-
+    
     # Choose usual sites: Inversely proportional to squared distance among chosen type
     usual_sites=[]
     for k in range(len(mob_rate_per_type)):
         usual_sites_k=[]
         # All sites of type k
         s_args = np.where(site_type == k)[0]
-
+        
         # Number of discrete sites to choose from type k
         variety_k = variety_per_type[k]
         # Probability of sites of type k
-        site_prob = site_prox[s_args] / site_prox[s_args].sum()
+        site_prob = site_prox[s_args] / site_prox[s_args].sum() 
         done = 0
         while (done < variety_k and len(s_args) > done):
             # s_idx = np.random.choice(site_prob.shape[0], p=site_prob)
@@ -127,9 +126,9 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
             if site not in usual_sites_k:
                 usual_sites_k.append(site)
                 done+=1
-
+        
         usual_sites.append(usual_sites_k)
-
+    
     id = 0
     while t < max_time:
         # k = np.random.multinomial(1, pvals=site_type_prob).argmax()
@@ -141,7 +140,7 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
 
         # Choose a site among the usuals of type k
         site = np.random.choice(np.array(usual_sites[k]))
-
+        
         # Duration: Exponential
         dur = rd.expovariate(1/dur_mean_per_type[k])
         if t + dur > max_time:
@@ -161,7 +160,7 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
         t += rd.expovariate(tot_mob_rate)
         # Increment id
         id += 1
-
+    
     return data
 
 @numba.njit
@@ -171,9 +170,9 @@ def _simulate_synthetic_mobility_traces(*, num_people, num_sites, max_time, home
     rd.seed(seed)
     np.random.seed(seed-1)
     data, visit_counts = list(), list()
-
+    
     for i in range(num_people):
-
+        
         # use mobility rates of specific age group
         mob_rate_per_type = mob_rate_per_age_per_type[people_age[i]]
         data_i = _simulate_individual_synthetic_trace(
@@ -186,10 +185,10 @@ def _simulate_synthetic_mobility_traces(*, num_people, num_sites, max_time, home
             mob_rate_per_type=mob_rate_per_type,
             dur_mean_per_type=dur_mean_per_type,
             delta=delta)
-
+        
         data.extend(data_i)
         visit_counts.append(len(data_i))
-
+    
     return data, visit_counts
 
 @numba.njit
@@ -198,13 +197,13 @@ def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_ag
     rd.seed(seed)
     np.random.seed(seed-1)
     data, visit_counts = list(), list()
-
+    
     for i in range(num_people):
         # use mobility rates of specific age group
         mob_rate_per_type = mob_rate_per_age_per_type[people_age[i]]
         # use site distances from specific tiles
         site_dist = tile_site_dist[home_tile[i]]
-
+    
         data_i = _simulate_individual_real_trace(
             indiv=i,
             max_time=max_time,
@@ -214,7 +213,7 @@ def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_ag
             delta=delta,
             variety_per_type=variety_per_type,
             site_dist=site_dist)
-
+        
         data.extend(data_i)
         visit_counts.append(len(data_i))
 
@@ -267,11 +266,10 @@ class MobilitySimulator:
     """
 
     def __init__(self, delta, home_loc=None, people_age=None, site_loc=None, site_type=None,
-                site_dict=None, daily_tests_unscaled=None, region_population=None,
                 mob_rate_per_age_per_type=None, dur_mean_per_type=None, home_tile=None,
-                tile_site_dist=None, variety_per_type=None, people_household=None, downsample=None,
-                num_people=None, num_people_unscaled=None, num_sites=None, mob_rate_per_type=None,
-                dur_mean=None, num_age_groups=None, seed=None, verbose=False):
+                tile_site_dist=None, variety_per_type=None,
+                num_people=None, num_sites=None, mob_rate_per_type=None, dur_mean=None,
+                num_age_groups=None, verbose=False):
         """
         delta : float
             Time delta to extend contacts
@@ -279,29 +277,17 @@ class MobilitySimulator:
             Home coordinates of each individual
         people_age : list of int
             Age group of each individual
-        people_household : list of int
-            Household of each individual
-        households : dict with key=household, value=individual
-            Individuals on each household
         site_loc : list of [float,float]
             Site coordinates
         site_type : list of int
             Type of each site
-        site_dict : dict of str
-            Translates numerical site types into words
-        daily_tests_unscaled : int
-            Daily testing capacity per 100k people
-        region_population : int
-            Number of people living in entire area/region
-        downsample : int
-            Downsampling factor chosen for real town population and sites
         mob_rate_per_age_per_type: list of list of float
             Mean number of visits per time unit.
-            Rows correspond to age groups, columns correspond to site types.
+            Rows correspond to age groups, columns correspond to site types. 
         dur_mean_per_type : float
             Mean duration of a visit per site type
         home_tile : list of int
-            Tile indicator for each home
+            Tile indicator for each home 
         tile_site_dist: 2D int array
             Pairwise distances between tile centers and sites.
             Rows correspond to tiles, columns correspond to sites.
@@ -309,8 +295,6 @@ class MobilitySimulator:
             Number of discrete sites per type
         num_people : int
             Number of people to simulate
-        num_people_unscaled : int
-            Real number of people in town (unscaled)
         num_sites : int
             Number of sites to simulate
         mob_rate_per_type : list of floats
@@ -323,97 +307,52 @@ class MobilitySimulator:
             Verbosity level
         """
 
-        # Set random seed for reproducibility
-        seed = seed or rd.randint(0, 2**32 - 1)
-        rd.seed(seed)
-        np.random.seed(seed-1)
-        
         synthetic = (num_people is not None and num_sites is not None and mob_rate_per_type is not None and
                     dur_mean is not None and num_age_groups is not None)
 
         real = (home_loc is not None and people_age is not None and site_loc is not None and site_type is not None and
-                daily_tests_unscaled is not None and num_people_unscaled is not None and region_population is not None and
                 mob_rate_per_age_per_type is not None and dur_mean_per_type is not None and home_tile is not None and
-                tile_site_dist is not None and variety_per_type is not None and downsample is not None)
-
+                tile_site_dist is not None and variety_per_type is not None)
+        
         assert (synthetic != real), 'Unable to decide on real or synthetic mobility generation based on given arguments'
 
         if synthetic:
-
+            
             self.mode = 'synthetic'
-
-            self.region_population = None
-            self.downsample = None
+            
             self.num_people = num_people
-            self.num_people_unscaled = None
-            # Random geographical assignment of people's home on 2D grid
-            self.home_loc = np.random.uniform(0.0, 1.0, size=(self.num_people, 2))
-            
-            # Age-group of individuals
-            self.people_age = np.random.randint(low=0, high=num_age_groups,
-                                                size=self.num_people, dtype=int)
-            self.people_household = None
-            self.households = None
-            self.daily_tests_unscaled =None
-
             self.num_sites = num_sites
-            # Random geographical assignment of sites on 2D grid
-            self.site_loc = np.random.uniform(0.0, 1.0, size=(self.num_sites, 2))
-            
-            # common mobility rate for all age groups
-            self.mob_rate_per_age_per_type = np.tile(mob_rate_per_type,(num_age_groups,1))
-            self.num_age_groups = num_age_groups
+
             self.num_site_types = len(mob_rate_per_type)
+            self.num_age_groups = num_age_groups
+            
             # common duration for all types
             self.dur_mean_per_type = np.array(self.num_site_types*[dur_mean])
-            
-            # Random type for each site
-            site_type_prob = np.ones(self.num_site_types)/self.num_site_types
-            self.site_type = np.random.multinomial(
-                n=1, pvals=site_type_prob, size=self.num_sites).argmax(axis=1)
-            
-            self.variety_per_type = None
-            
+            # common mobility rate for all age groups
+            self.mob_rate_per_age_per_type = np.tile(mob_rate_per_type,(num_age_groups,1))
+
             self.home_tile=None
             self.tile_site_dist=None
+            self.variety_per_type=None
 
         elif real:
 
             self.mode = 'real'
 
-            self.downsample = downsample
-            self.region_population = region_population
-            self.num_people_unscaled = num_people_unscaled
             self.num_people = len(home_loc)
             self.home_loc = np.array(home_loc)
 
             self.people_age = np.array(people_age)
-            
-            if people_household is not None:
-                self.people_household = np.array(people_household)
-            
-                # create dict of households, to retreive household members in O(1) during household infections
-                self.households = {}
-                for i in range(self.num_people):
-                    if self.people_household[i] in self.households:
-                        self.households[people_household[i]].append(i)
-                    else:
-                        self.households[people_household[i]] = [i]
-            else:
-                self.people_household = None
-                self.households = {}
 
             self.num_sites = len(site_loc)
             self.site_loc = np.array(site_loc)
 
-            self.daily_tests_unscaled = daily_tests_unscaled
+            self.site_type = np.array(site_type)
 
             self.mob_rate_per_age_per_type = np.array(mob_rate_per_age_per_type)
             self.num_age_groups = self.mob_rate_per_age_per_type.shape[0]
             self.num_site_types = self.mob_rate_per_age_per_type.shape[1]
             self.dur_mean_per_type = np.array(dur_mean_per_type)
-            
-            self.site_type = np.array(site_type)
 
             self.variety_per_type=np.array(variety_per_type)
 
@@ -422,14 +361,77 @@ class MobilitySimulator:
 
         else:
             raise ValueError('Provide more information for the generation of mobility data.')
-
-        # Only relevant if an old settings file is being used, should be removed in the future
-        if site_dict is None:
-            self.site_dict = {0: 'education', 1: 'social', 2: 'bus_stop', 3: 'office', 4: 'supermarket'}
-        else:
-            self.site_dict = site_dict
+                
         self.delta = delta
         self.verbose = verbose
+
+    @staticmethod
+    def from_json(fp, compute_contacts=True):
+        """
+        Reach the from `fp` (.read()-supporting file-like object) that is
+        expected to be JSON-formated from the `to_json` file.
+
+        Parameters
+        ----------
+        fp : object
+            The input .read()-supporting file-like object
+        compute_contacts : bool (optional, default: True)
+            Indicate if contacts should be computed from the mobility traces.
+            If True, then any `contact` key in `fp` will be ignored.
+            If False, `fp` must have a contact` key.
+
+        Return
+        ------
+        sim : MobilitySimulator
+            The loaded object
+        """
+        # Read file into json dict
+        data = json.loads(fp.read())
+
+        # Init object
+        init_attrs = ['num_people', 'num_sites', 'delta',
+                      'mob_mean', 'dur_mean', 'verbose']
+        obj = MobilitySimulator(**{attr: data[attr] for attr in init_attrs})
+
+        # Set np.ndarray attributes
+        for attr in ['home_loc', 'site_loc']:
+            setattr(obj, attr, np.array(data[attr]))
+
+        # Set list attributes
+        for attr in ['visit_counts']:
+            setattr(obj, attr, list(data[attr]))
+
+        # Set `mob_traces` attribute into dict:defaultdict:InterLap
+        setattr(obj, 'mob_traces', {i: defaultdict(InterLap) for i in range(obj.num_people)})
+        for indiv, traces_i in data['mob_traces'].items():
+            indiv = int(indiv)  # JSON does not support int keys
+            for site, visit_list in traces_i.items():
+                site = int(site)  # JSON does not support int keys
+                if len(visit_list) > 0:
+                    inter = InterLap()
+                    inter.update(list(map(lambda t: Visit(*t), visit_list)))
+                    obj.mob_traces[indiv][site] = inter
+
+        # Set `contacts` attribute into dict:defaultdict:InterLap
+        if compute_contacts:  # Compute from `mob_traces`
+            all_mob_traces = []
+            for i, traces_i in obj.mob_traces.items():
+                for j, inter in traces_i.items():
+                    all_mob_traces.extend(inter._iset)
+            # Compute contacts from mobility traces
+            obj.contacts = obj._find_contacts(all_mob_traces)
+        else:  # Load from file
+            setattr(obj, 'contacts', {i: defaultdict(InterLap) for i in range(obj.num_people)})
+            for indiv_i, contacts_i in data['contacts'].items():
+                indiv_i = int(indiv_i)  # JSON does not support int keys
+                for indiv_j, contact_list in contacts_i.items():
+                    indiv_j = int(indiv_j)  # JSON does not support int keys
+                    if len(contact_list) > 0:
+                        inter = InterLap()
+                        inter.update(list(map(lambda t: Contact(*t), contact_list)))
+                        obj.contacts[indiv_i][indiv_j] = inter
+
+        return obj
 
     @staticmethod
     def from_pickle(path):
@@ -486,8 +488,20 @@ class MobilitySimulator:
         seed = seed or rd.randint(0, 2**32 - 1)
         rd.seed(seed)
         np.random.seed(seed-1)
-
+        
         if self.mode == 'synthetic':
+            # Random geographical assignment of people's home on 2D grid
+            self.home_loc = np.random.uniform(0.0, 1.0, size=(self.num_people, 2))
+            # Age-group of individuals
+            self.people_age = np.random.randint(low=0, high=self.num_age_groups,
+                                        size=self.num_people, dtype=int)
+            # Random geographical assignment of sites on 2D grid
+            self.site_loc = np.random.uniform(0.0, 1.0, size=(self.num_sites, 2))
+            # Random type for each site
+            site_type_prob = np.ones(self.num_site_types)/self.num_site_types
+            self.site_type = np.random.multinomial(
+                n=1, pvals=site_type_prob, size=self.num_sites).argmax(axis=1)
+
             all_mob_traces, self.visit_counts = _simulate_synthetic_mobility_traces(
                 num_people=self.num_people,
                 num_sites=self.num_sites,
@@ -500,8 +514,8 @@ class MobilitySimulator:
                 dur_mean_per_type=self.dur_mean_per_type,
                 delta=self.delta,
                 seed=rd.randint(0, 2**32 - 1)
-                )
-
+                ) 
+    
         elif self.mode == 'real':
             all_mob_traces, self.visit_counts = _simulate_real_mobility_traces(
                 num_people=self.num_people,
@@ -517,131 +531,67 @@ class MobilitySimulator:
                 seed=rd.randint(0, 2**32 - 1)
                 )
 
-        # Group mobility traces per indiv 
+        # Group mobility traces per indiv and site
         self.mob_traces = self._group_mob_traces(all_mob_traces)
         return all_mob_traces
 
-    def _find_contacts(self):
-        """
-        Finds contacts in a given list `mob_traces` of `Visit`s
-        and stores them in a dictionary of dictionaries of InterLap objects,
-        """
+    def _find_contacts(self, mob_traces):
+        """Find contacts in a given list `mob_traces` of `Visit`s"""
         # Group mobility traces by site
         mob_traces_at_site = defaultdict(list)
-        for v in self.all_mob_traces:
+        for v in mob_traces:
             mob_traces_at_site[v.site].append(v)
 
-        contacts = self._find_mob_trace_overlaps(sites=range(self.num_sites),
-                                                 mob_traces_at_site=mob_traces_at_site,
-                                                 infector_mob_traces_at_site=mob_traces_at_site,
-                                                 tmin=0.0,
-                                                 for_all_individuals=True)
-        return contacts
+        # dict of dict of list of contacts:
+        # i.e. contacts[i][j][k] = "k-th contact from i to j"
+        contacts = {i: defaultdict(InterLap) for i in range(self.num_people)}
 
-    def find_contacts_of_indiv(self, indiv, tmin):
-        """
-        Finds all delta-contacts of person 'indiv' with any other individual after time 'tmin'
-        and returns them as InterLap object.
-        In the simulator, this function is called for `indiv` as infector.
-        """
-        mob_traces_at_site = defaultdict(list)
-        infector_mob_traces_at_site = defaultdict(list)
-        visited_sites = []
-
-        for v in self.all_mob_traces:
-            if v.indiv == indiv:
-                infector_mob_traces_at_site[v.site].append(v)
-                if v.site not in visited_sites:
-                    visited_sites.append(v.site)
-            mob_traces_at_site[v.site].append(v)
-
-        contacts = self._find_mob_trace_overlaps(sites=visited_sites,
-                                                 mob_traces_at_site=mob_traces_at_site,
-                                                 infector_mob_traces_at_site=infector_mob_traces_at_site,
-                                                 tmin=tmin,
-                                                 for_all_individuals=False)
-        return contacts
-
-    def _find_mob_trace_overlaps(self, sites, mob_traces_at_site, infector_mob_traces_at_site, tmin, for_all_individuals):
-
-        # decide way of storing depending on way the function is used (all or individual)
-        # FIXME: this could be done in a cleaner way by calling this function several times in `_find_contacts` 
-        if for_all_individuals:
-            # dict of dict of list of contacts:
-            # i.e. contacts[i][j][k] = "k-th contact from i to j"
-            contacts = {i: defaultdict(InterLap) for i in range(self.num_people)}
-        else:
-            contacts = InterLap()
-
-        if self.verbose and for_all_individuals:
-            print() # otherwise jupyter notebook looks ugly
-
-        for s in sites:
-            if self.verbose and for_all_individuals:
-                print('Checking site ' + str(s + 1) + '/' + str(len(sites)), end='\r')
+        # For each site s
+        for s in range(self.num_sites):
+            if self.verbose:
+                print('Checking site '+str(s+1)+'/'+str(self.num_sites), end='\r')
             if len(mob_traces_at_site[s]) == 0:
                 continue
-
+            
             # Init the interval overlap matcher
             inter = InterLap()
             inter.update(mob_traces_at_site[s])
-
             # Match contacts
-            # Iterate over each visit of the infector at site s
-            for v_inf in infector_mob_traces_at_site[s]:
+            for v in mob_traces_at_site[s]:
+                v_time = (v.t_from, v.t_to)
+                for vo in list(inter.find(other=v_time)):
+                    # Ignore contacts with same individual
+                    if v.indiv == vo.indiv:
+                        continue
+                    # Compute contact time
+                    c_t_from = max(v.t_from, vo.t_from)
+                    c_t_to = min(v.t_to, vo.t_to_shifted)
+                    if c_t_to > c_t_from:
+                        # Set contact tuple
+                        c = Contact(t_from=c_t_from,
+                                    t_to=c_t_to,
+                                    indiv_i=v.indiv,
+                                    indiv_j=vo.indiv,
+                                    id_tup=(v.id, vo.id),
+                                    site=s,
+                                    duration=c_t_to - c_t_from)
+                        # Add it to interlap
+                        contacts[v.indiv][vo.indiv].update([c])
 
-                # Skip if delta-contact ends before `tmin` 
-                if v_inf.t_to_shifted > tmin:
-                    
-                    v_time = (v_inf.t_from, v_inf.t_to_shifted)
-
-                    # Find any othe person that had overlap with this visit 
-                    for v in list(inter.find(other=v_time)):
-
-                        # Ignore contacts with same individual
-                        if v.indiv == v_inf.indiv:
-                            continue
-
-                        # Compute contact time
-                        c_t_from = max(v.t_from, v_inf.t_from)
-                        c_t_to = min(v.t_to, v_inf.t_to_shifted)
-                        if c_t_to > c_t_from and c_t_to > tmin:
-
-                            # Init contact tuple
-                            # Note 1: Contact always considers delta overlap for `indiv_j` 
-                            # (i.e. for `indiv_j` being the infector)
-                            # Note 2: Contact contains the delta-extended visit of `indiv_j`
-                            # (i.e. there is a `Contact` even when `indiv_j` never overlapped physically with `indiv_i`)
-                            # (i.e. need to adjust for that in dY_i integral)
-                            c = Contact(t_from=c_t_from,
-                                        t_to=c_t_to,
-                                        indiv_i=v.indiv,
-                                        indiv_j=v_inf.indiv,
-                                        id_tup=(v.id, v_inf.id),
-                                        site=s,
-                                        duration=c_t_to - c_t_from)
-
-                            # Add it to interlap
-                            if for_all_individuals:
-                                # Dictionary of all contacts
-                                contacts[v.indiv][v_inf.indiv].update([c])
-                            else:
-                                # All contacts of (infector) 'indiv' only
-                                contacts.update([c])
         return contacts
 
     def _group_mob_traces(self, mob_traces):
-        """Group `mob_traces` by individual and for faster queries.
+        """Group `mob_traces` by individual and site for faster queries.
         Returns a dict of dict of Interlap of the form:
 
-            mob_traces_dict[i] = "Interlap of visits of indiv i"
+            mob_traces_dict[i][s] = "Interlap of visits of indiv i at site s"
         """
-        mob_traces_dict = {i: InterLap() for i in range(self.num_people)}
+        mob_traces_dict = {i: defaultdict(InterLap) for i in range(self.num_people)}
         for v in mob_traces:
-            mob_traces_dict[v.indiv].update([v])
+            mob_traces_dict[v.indiv][v.site].update([v])
         return mob_traces_dict
 
-    def simulate(self, max_time, seed=None, dynamic_tracing=False):
+    def simulate(self, max_time, seed=None):
         """
         Simulate contacts between individuals in time window [0, max_time].
 
@@ -651,9 +601,6 @@ class MobilitySimulator:
             Maximum time to simulate
         seed : int
             Random seed for mobility simulation
-        dynamic_tracing : bool
-            If true the contact dictionary is not computed and contacts
-            need to be computed on-the-fly during launch_epidemic
 
         Returns
         -------
@@ -671,48 +618,69 @@ class MobilitySimulator:
             print(f'Simulate mobility for {max_time:.2f} time units... ',
                   end='', flush=True)
         all_mob_traces = self._simulate_mobility(max_time, seed)
-        self.all_mob_traces = all_mob_traces
-
         if self.verbose:
             print(f'Simulated {len(all_mob_traces)} visits.', flush=True)
 
-        if not dynamic_tracing:
-            # Find the contacts in all sites in the histories
-            if self.verbose:
-                print(f'Find contacts... ', end='')
-            self.contacts = self._find_contacts()
+        # Find the contacts in all sites in the histories
+        if self.verbose:
+            print(f'Find contacts... ', end='')
+        self.contacts = self._find_contacts(all_mob_traces)
+        # FIXME: contact_count calculation takes too long
+        # self.contact_count = sum(len(self.contacts[i][j]) for i in range(
+        #     self.num_people) for j in range(self.num_people))
+        # if self.verbose:
+        #     print(f'Found {self.contact_count} contacts', flush=True)
 
-        else:
-            # Initialize empty contact array
-            self.contacts = {i: defaultdict(InterLap) for i in range(self.num_people)}
+    def is_individual_at_site(self, indiv, site, t):
+        """Indicate if individual `indiv` is present at site `site` at time `t`
+            and returns interval if possible
+        Returns:
+            If true: True, Interval
+            If False: False, None
+        """
+        matches = list(self.mob_traces[indiv][site].find((t,t)))
+        if len(matches) == 1:
+            visit = matches[0]
+            # Match on (`t_form`, `t_to_shifted`), need to filter out matches
+            # after time `t_to`
+            # FIXME: This could be made easier by using the non-shifted
+            # intervals in `self.mob_traces`
+            if t < visit.t_to:
+                return True, Interval(matches[0].t_from, matches[0].t_to)
+        elif len(matches) > 1:
+            # An indiv cannot be at the site more than once at the same time
+            raise RuntimeError(("Too many matches found, that's not possible, "
+                                "you probably found a bug..."))
+        # No match
+        return False, None
 
-
-    def list_intervals_in_window_individual_at_site(self, *, indiv, site, t0, t1):
+    def list_intervals_in_window_individual_at_site(self, indiv, site, t0, t1):
         """Return a generator of Intervals of all visits of `indiv` is at site
            `site` that overlap with [t0, t1]
-        """
-        for visit in self.mob_traces[indiv].find((t0, t1)):
-            # the above call matches all on (`t_from`, `t_to_shifted`)
-            # thus need to filter out visits that ended before `t0`, 
-            # i.e. visits such that `t_to` <= `t0`, 
-            # i.e. environmental match only (match only occured on (`t_to`, `t_to_shifted`))
 
-            if visit.t_to > t0 and visit.site == site:
+            FIXME: Make sure that this query is correct
+        """
+        for visit in self.mob_traces[indiv][site].find((t0, t1)):
+            # Match on (`t_form`, `t_to_shifted`), need to filter out visits
+            # that ended before `t0`, i.e. visits such that `t_to` <= `t0`
+            # FIXME: This could be made easier by using the non-shifted
+            # intervals in `self.mob_traces`
+            if visit.t_to > t0:
                 yield Interval(visit.t_from, visit.t_to)
 
-    def is_in_contact(self, *, indiv_i, indiv_j, t, site=None):
+    def is_in_contact(self, indiv_i, indiv_j, site, t):
         """Indicate if individuals `indiv_i` is within `delta` time to
         make contact with `indiv_j` at time `t` in site `site`, and return contact if possible
         """
         try:
             # Find contact matching time and check site
             contact = next(self.contacts[indiv_i][indiv_j].find((t, t)))
-            return (site is None) or (contact.site == site), contact
+            return contact.site == site, contact
 
         except StopIteration:  # No such contact, call to `next` failed
             return False, None
 
-    def will_be_in_contact(self, *, indiv_i, indiv_j, t, site=None):
+    def will_be_in_contact(self, indiv_i, indiv_j, site, t):
         """Indicate if individuals `indiv_i` will ever make contact with
         `indiv_j` in site `site` at a time greater or equal to `t`
         """
@@ -722,19 +690,20 @@ class MobilitySimulator:
             # Check site
             if site is None:
                 return True
-            elif (site is None) or (c.site == site):
+            elif c.site == site:
                 return True
-
+        
         return False
-
-    def next_contact(self, *, indiv_i, indiv_j, t=np.inf, site=None):
-        """Returns the next `delta`- contact between
+    
+    def next_contact(self, indiv_i, indiv_j, site=None, t=np.inf):
+        """Returns the next `delta`- contact between 
             `indiv_i` with `indiv_j` in site `site` at a time greater or equal to `t`
         """
         contacts_ij = self.contacts[indiv_i][indiv_j]
         # Search future contacts
         for c in contacts_ij.find((t, np.inf)):
             # Check site
-            if (site is None) or (c.site == site):
+            if c.site == site:
                 return c
         return None # No contact in the future
+
