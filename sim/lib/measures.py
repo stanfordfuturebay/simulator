@@ -412,7 +412,63 @@ class ComplianceForAllMeasure(Measure):
             return self.p_compliance
         return 0.0
     
-    
+
+class ComplianceForEssentialWorkers(Measure):
+    """
+    Compliance measure. All the population has a probability of not using tracking app. This
+    influences the ability of smart tracing to track contacts. Each individual uses a tracking
+    app with some probability.
+    """
+
+    def __init__(self, t_window, p_compliance):
+        """
+        Parameters
+        ----------
+        t_window : Interval
+            Time window during which the measure is active
+        p_compliance : float
+            Probability that essential worker is compliant, should be in [0,1]
+        """
+        # Init time window
+        super().__init__(t_window)
+
+        # Init probability of respecting measure
+        if (not isinstance(p_compliance, float)) or (p_compliance < 0):
+            raise ValueError("`compliance` should be a non-negative float")
+        self.p_compliance = p_compliance
+
+    def init_run(self, n_people):
+        """Init the measure for this run by sampling the compliance of each individual
+        Parameters
+        ----------
+        n_people : int
+            Number of people in the population
+        """
+        # Sample the outcome of the measure for each essential worker
+        self.bernoulli_compliant = np.random.binomial(1, self.p_compliance, size=(n_people))
+        self._is_init = True
+
+    @enforce_init_run
+    def is_contained(self, *, j, t, essential_workers):
+        """Indicate if individual `j` respects measure 
+        """
+        if essential_workers is None:
+            is_not_compliant = True
+        elif essential_workers[j]==False:
+            is_not_compliant = True
+        else:
+            is_not_compliant = 1 - self.bernoulli_compliant[j]
+        return is_not_compliant
+#         is_not_compliant = 1 - self.bernoulli_compliant[j]
+#         return is_not_compliant and self._in_window(t)
+
+    def is_contained_prob(self, *, j, t):
+        """Returns probability of containment for individual `j` at time `t`
+        """
+        # Laura: this is meaningless for essential workers. Need to investigate implications
+        if self._in_window(t):
+            return self.p_compliance
+        return 0.0    
 
 """
 =========================== OTHERS ===========================

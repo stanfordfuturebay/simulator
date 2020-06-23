@@ -15,7 +15,8 @@ from lib.priorityqueue import PriorityQueue
 from lib.measures import (MeasureList, BetaMultiplierMeasure,
     SocialDistancingForAllMeasure, BetaMultiplierMeasureByType,
     SocialDistancingForPositiveMeasure, SocialDistancingByAgeMeasure, 
-    SocialDistancingForSmartTracing, ComplianceForAllMeasure, SocialDistancingForKGroups)
+    SocialDistancingForSmartTracing, ComplianceForAllMeasure, SocialDistancingForKGroups,
+    ComplianceForEssentialWorkers)
 
 class DiseaseModel(object):
     """
@@ -56,6 +57,8 @@ class DiseaseModel(object):
         self.num_age_groups = mob.num_age_groups
         self.site_type = mob.site_type
         self.num_site_types = mob.num_site_types
+        
+        self.essential_workers = mob.essential_workers
         
         assert(self.num_age_groups == self.fatality_rates_by_age.shape[0])
         assert(self.num_age_groups == self.p_hospital_by_age.shape[0])
@@ -329,6 +332,9 @@ class DiseaseModel(object):
                                    n_visits=max(self.mob.visit_counts))    
 
         self.measure_list.init_run(SocialDistancingForKGroups)
+        
+        self.measure_list.init_run(ComplianceForEssentialWorkers,
+                                   n_people=self.n_people)
 
         # init state variables with seeds
         self.__init_run()
@@ -839,8 +845,10 @@ class DiseaseModel(object):
             
         # smart tracing
         # if i is not compliant, skip
-        is_i_not_compliant = self.measure_list.is_contained(
-            ComplianceForAllMeasure, t=t-self.test_smart_delta, j=i)
+        is_i_not_compliant = (self.measure_list.is_contained(
+            ComplianceForAllMeasure, t=t-self.test_smart_delta, j=i) or
+                              self.measure_list.is_contained(
+                                  ComplianceForEssentialWorkers, t=t-self.test_smart_delta,j=i,essential_workers=self.mob.essential_workers))
             
         if is_i_not_compliant:
             return
@@ -861,8 +869,10 @@ class DiseaseModel(object):
         
         for j in valid_j():               
             # if j is not compliant, skip
-            is_j_not_compliant = self.measure_list.is_contained(
-                ComplianceForAllMeasure, t=t-self.test_smart_delta, j=j)
+            is_j_not_compliant = (self.measure_list.is_contained(ComplianceForAllMeasure, t=t-self.test_smart_delta, j=j) or
+                self.measure_list.is_contained(
+                    ComplianceForEssentialWorkers, t=t-self.test_smart_delta,j=j,essential_workers=self.mob.essential_workers))
+
             
             if is_j_not_compliant:
                 continue

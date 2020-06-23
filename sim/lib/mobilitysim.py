@@ -40,10 +40,14 @@ Interval = namedtuple('Interval', ('left', 'right'))
 
 @numba.njit
 def _simulate_individual_synthetic_trace(indiv, num_sites, max_time, home_loc, site_loc,
-                            site_type, mob_rate_per_type, dur_mean_per_type, delta):
+                            site_type, mob_rate_per_type, dur_mean_per_type, delta, essential_mob_rate_per_type=None):
     """Simulate a mobility trace for one synthetic individual on a 2D grid (jit for speed)"""
     # Holds tuples of (time_start, time_end, indiv, site, duration)
     data = list()
+    
+    if (essential_mob_rate_per_types is not None) and (self.essential_workers[indiv] is True):
+        mob_rate_per_type = essential_mob_rate_per_type
+    
     # Set rates and probs
     tot_mob_rate = np.sum(mob_rate_per_type)  # Total mobility rate
     site_type_prob = mob_rate_per_type / tot_mob_rate  # Site type probability
@@ -166,7 +170,7 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
 @numba.njit
 def _simulate_synthetic_mobility_traces(*, num_people, num_sites, max_time, home_loc, site_loc,
                             site_type, people_age, mob_rate_per_age_per_type, dur_mean_per_type,
-                            delta, seed):
+                            delta, seed, essential_mob_rate_per_type=None):
     rd.seed(seed)
     np.random.seed(seed-1)
     data, visit_counts = list(), list()
@@ -184,7 +188,9 @@ def _simulate_synthetic_mobility_traces(*, num_people, num_sites, max_time, home
             site_type=site_type,
             mob_rate_per_type=mob_rate_per_type,
             dur_mean_per_type=dur_mean_per_type,
-            delta=delta)
+            delta=delta,
+            essential_mob_rate_per_type=essential_mob_rate_per_type
+        )
         
         data.extend(data_i)
         visit_counts.append(len(data_i))
@@ -194,10 +200,10 @@ def _simulate_synthetic_mobility_traces(*, num_people, num_sites, max_time, home
 @numba.njit
 def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_age, mob_rate_per_age_per_type,
                             dur_mean_per_type, home_tile, tile_site_dist, variety_per_type, delta, seed):
+        
     rd.seed(seed)
     np.random.seed(seed-1)
     data, visit_counts = list(), list()
-    
     for i in range(num_people):
         # use mobility rates of specific age group
         mob_rate_per_type = mob_rate_per_age_per_type[people_age[i]]
@@ -269,7 +275,7 @@ class MobilitySimulator:
                 mob_rate_per_age_per_type=None, dur_mean_per_type=None, home_tile=None,
                 tile_site_dist=None, variety_per_type=None,
                 num_people=None, num_sites=None, mob_rate_per_type=None, dur_mean=None,
-                num_age_groups=None, verbose=False):
+                num_age_groups=None, verbose=False, essential_workers=None, essential_mob_rate_per_type=None):
         """
         delta : float
             Time delta to extend contacts
@@ -316,6 +322,9 @@ class MobilitySimulator:
         
         assert (synthetic != real), 'Unable to decide on real or synthetic mobility generation based on given arguments'
 
+        self.essential_workers=essential_workers
+        self.essential_mob_rate_per_type=essential_mob_rate_per_type
+        
         if synthetic:
             
             self.mode = 'synthetic'
@@ -513,7 +522,8 @@ class MobilitySimulator:
                 mob_rate_per_age_per_type=self.mob_rate_per_age_per_type,
                 dur_mean_per_type=self.dur_mean_per_type,
                 delta=self.delta,
-                seed=rd.randint(0, 2**32 - 1)
+                seed=rd.randint(0, 2**32 - 1),
+                essential_mob_rate_per_type=essential_mob_rate_per_type
                 ) 
     
         elif self.mode == 'real':
