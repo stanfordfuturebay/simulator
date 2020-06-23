@@ -29,7 +29,9 @@ class CovidDistributions(object):
         '''
         self.lambda_0 = 0.0
         self.fatality_rates_by_age = fatality_rates_by_age
-        self.p_hospital_by_age = np.array([0.001, 0.002, 0.012, 0.065, 0.205, 0.273])
+		# Zihan: adjusted for SF
+        #self.p_hospital_by_age = np.array([0.001, 0.002, 0.012, 0.065, 0.205, 0.273])
+        self.p_hospital_by_age = np.array([0.001, 0.002, 0.012, 0.012, 0.012, 0.065, 0.205, 0.273])
 
         self.gamma = np.log(2.0) / 2.0 # 2 hour half life
         self.delta = np.log(5.0) / self.gamma # time of intensity decrease to below 20 %
