@@ -36,7 +36,7 @@ if '..' not in sys.path:
 
 if __name__ == '__main__':
 
-    mob_settings = 'lib/mobility/SF_settings_100_100.pk'
+    mob_settings = 'lib/mobility/SF_settings_200_100.pk'
     random_repeats = 40
 
     # cpus_used = multiprocessing.cpu_count()
