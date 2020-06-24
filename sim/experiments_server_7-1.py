@@ -168,9 +168,9 @@ if __name__ == '__main__':
 
     summaries_SD_6 = dict()
 
-    p_compliance = [1.0]
+    p_compliance = [0.0, 0.1, 0.25, 0.5, 0.75, 1.0]
 
-    for policy in ['advanced']:
+    for policy in ['basic','advanced']:
         summaries_ = []
         testing_params_SD_6['smart_tracing'] = policy
 
