@@ -18,6 +18,7 @@ from lib.parallel import *
 from bayes_opt import BayesianOptimization
 from lib.dynamics import DiseaseModel
 from lib.mobilitysim import MobilitySimulator
+from lib.runutils import *
 import multiprocessing
 import re
 import matplotlib
@@ -31,38 +32,53 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import sys
+import argparse
 if '..' not in sys.path:
     sys.path.append('..')
 
+    
+    
 if __name__ == '__main__':
+    ### Parse Arguments ###
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--sim_days', type=int, default=84, 
+                        help="Integer number of days to run simulation. Default 12 weeks (84 days).")
+    parser.add_argument('--outfile', type=str, default='summaries_SD_5', 
+                        help="Name (without extension) for output pickle file")
+    parser.add_argument('--num_workers',type=int, default=23, 
+                        help="Number of parallel threads to run simultaneously, capped at (number of available CPUs - 1)")
+    parser.add_argument('--random_repeats',type=int, default=40, 
+                        help="Number of random realizations to run. Use at least 40 for stable results")
+    parser.add_argument('--beta',type=float, default=1.1383, 
+                        help="Site infectivity parameter for all site types") # TODO set different betas for each site type
+    parser.add_argument('--alpha',type=float, default=0.3224, 
+                        help="Proportion of cases that are asymptomatic")
+    parser.add_argument('--mu', type=float, default=0.2072,
+                        help="Relative infectivity of asymptomatic cases")
+    parser.add_argument('--mob_settings',type=str, default='lib/tu_settings_20_10.pk', 
+                        help="Path to mobility settings pickle file")
+    parser.add_argument('--seed', type=int, default=0,
+                        help="Set random seed for reproducibility")
+    args = parser.parse_args()
+    print(args)
+    
+    
+    
+    mob_settings = args.mob_settings
+    random_repeats = args.random_repeats
+    num_workers = min(args.num_workers,multiprocessing.cpu_count()-1)
+    c = args.seed  # seed
 
-    mob_settings = 'lib/tu_settings_20_10.pk'
-    random_repeats = 40
-
-    # cpus_used = multiprocessing.cpu_count()
-    cpus_used = 23
-
-    c = 0  # seed
-    FIGSIZE = (8, 4)
-
-    # #### Import town settings
-
-    tuned_p_stay_home = 0.2
-    tuned_site_multipliers = [0.0, 0.0, 0.5, 0.5, 0.5]
-
-    # See town-generator.ipynb for an example on how to create own settings
+    #### Import town settings ####
     with open(mob_settings, 'rb') as fp:
         obj = pickle.load(fp)
     mob = MobilitySimulator(**obj)
     np.random.seed(c)
-    runstr = f'run{c}_'
 
-    # General note for plotting: `errorevery` has to be set proportionally to `acc`, and best to keep `acc` as it is
-    days_until_lockdown = 13  # March 10 - March 23
-    days_after_lockdown = 20  # March 24 - April 12
-    days_present = days_until_lockdown + days_after_lockdown + \
-        2  # simulate 2 more days due to test lag
-    days_future = 12 * 7  # projecting 12 weeks into the future
+
+    #### Get case data and infer fatality rates by age group ####
+    days_present = 33 # placeholder, get average fatality rates for March 10-April 12
+    days_future = args.sim_days
 
     case_downsample = 10
     new_cases_ = collect_data_from_df('LK Tübingen', 'new', until=days_present)
@@ -80,8 +96,8 @@ if __name__ == '__main__':
     print('Empirical fatality rates per age group:  ',
           fatality_rates_by_age.tolist())
 
+    
     # Scale down cases based on number of people in simulation
-
     new_cases, resistant_cases, fatality_cases = (
         1/case_downsample * new_cases_,
         1/case_downsample * resistant_cases_,
@@ -89,14 +105,12 @@ if __name__ == '__main__':
     new_cases, resistant_cases, fatality_cases = np.ceil(
         new_cases), np.ceil(resistant_cases), np.ceil(fatality_cases)
 
+     # instantiate correct distributions
+    distributions = CovidDistributions(
+        fatality_rates_by_age=fatality_rates_by_age)   
+    
+    
     # Define initial seed count (based on infection counts on March 10)
-
-    initial_seeds = {
-        'expo': 1,
-        'ipre': 1,
-        'isym': 3,
-        'iasy': 3,
-    }
     present_seeds = {
         'expo': 3,
         'ipre': 1,
@@ -109,43 +123,20 @@ if __name__ == '__main__':
     max_time_present = 24.0 * (days_present)
     max_time_future = 24.0 * (days_future)
 
-    # #### Define standard testing parameters, same used for inference
-
-    def standard_testing(max_time):
-        standard_testing_params = {
-            'testing_t_window': [0.0, max_time],  # in hours
-            'testing_frequency': 24.0,     # in hours
-            # in hours (actual and self-report delay)
-            'test_reporting_lag': 48.0,
-            'tests_per_batch': 10,       # assume 300 tests/day in LK Tübingen
-            'test_smart_delta': 24.0 * 3,  # in hours
-            'test_smart_duration': 24.0 * 7,  # in hours
-            'test_smart_action': 'isolate',
-            'test_smart_num_contacts': 10,
-            'test_targets': 'isym',
-            'test_queue_policy': 'fifo',
-            'smart_tracing': None,
-        }
-        return standard_testing_params
-    # #### Define distributions as estimated by literature
-    #
+    
 
 
-    # instantiate correct distributions
-    distributions = CovidDistributions(
-        fatality_rates_by_age=fatality_rates_by_age)
 
-    # #### Set epidemic parameters as inferred using Bayesian optimization
-
+    #### Set epidemic parameters as inferred using Bayesian optimization
     # inferred parameters (see paper)
     inferred_params = {
-        'betas': [1.1383] * 5,  # site infectivity by type
-        'alpha': 0.3224,
-        'mu': 0.2072
+        'betas': [args.beta] * 5,  # site infectivity by type
+        'alpha': args.alpha,
+        'mu': args.mu
     }
 
-    # Define function to run general type of experiment, fixing the above settings.
-
+    
+    #### Define function to run general type of experiment, fixing the above settings. ####
     def run(tparam, measure_list, t, local_seeds):
 
         # add standard measure of positives staying isolated
@@ -159,7 +150,7 @@ if __name__ == '__main__':
         summary = launch_parallel_simulations(
             mob_settings,
             distributions,
-            random_repeats, cpus_used,
+            random_repeats, num_workers,
             inferred_params, local_seeds, tparam, measure_list,
             max_time=t,
             num_people=mob.num_people,
@@ -169,14 +160,7 @@ if __name__ == '__main__':
         return summary
 
 
-    def save_summary(summary, filename):
-        with open('summaries/' + filename, 'wb') as fp:
-            pickle.dump(summary, fp)
 
-    def load_summary(filename):
-        with open('summaries/' + filename, 'rb') as fp:
-            summary = pickle.load(fp)
-        return summary
 
 
     """
@@ -184,50 +168,26 @@ if __name__ == '__main__':
 
     """
 
-    # ## Only simulate the future from here onwards
-    #
-    #
-    tuned_p_stay_home = 0.2
-    tuned_site_multipliers = [0.0, 0.0, 0.5, 0.5, 0.5]
 
-    # baseline (no measure for the future starting April 12)
-    # future_baseline = run(standard_testing(max_time_future),
-    #                       [], max_time_future, present_seeds)
-    # save_summary(future_baseline, 'future_baseline_3.pk')
-
-    # ### 4.3.4. Can we control the outbreak using only contact tracing and isolation?
-
+    #### 4.3.4. Can we control the outbreak using only contact tracing and isolation? ####
     testing_params_SD_5 = standard_testing(max_time_future)
-    # time window considered for inspecting contacts
     testing_params_SD_5['test_smart_delta'] = 24.0 * 3
     testing_params_SD_5['test_smart_action'] = 'isolate'
     testing_params_SD_5['test_targets'] = 'isym'
 
-    # how many days selected people have to stay in isolation
-    isolation_days = [7]
-    # how many contacts are isolated in the `test_smart_delta` window
-    contacts_isolated = [10, 25]
-    duration_weeks_SD_5 = 12  # strategies tested for 12 weeks starting today
+    
+    isolation_days = [7] # how many days selected people have to stay in isolation
+    contacts_isolated = [10, 25] # how many contacts are isolated in the `test_smart_delta` window
 
+    
     summaries_SD_5 = dict()
-
-    weeks = 1
-
-    # baseline
-    # same as tuned plus different isolation strategies for contact tracing
-    m = [ # education close, social closes, rest reduced by 50%
-        BetaMultiplierMeasureByType(
-        t_window=Interval(0.0, 24.0 * weeks),
-        beta_multiplier=tuned_site_multipliers),
-
-        # 40 % less activite of all due to contact constraints
-        SocialDistancingForAllMeasure(
-        t_window=Interval(0.0, 24.0 * weeks),
-        p_stay_home=tuned_p_stay_home)
-    ]
+    
+    # Run baseline
+    m = []
     res = run(testing_params_SD_5, m,
               max_time_future, present_seeds)
 
+    # Add baseline to summaries for each (days, contacts)
     for days in isolation_days:
         for contacts in contacts_isolated:
             summaries_SD_5[(days, contacts)] = [res]
@@ -245,26 +205,11 @@ if __name__ == '__main__':
                     t_window=Interval(
                         *testing_params_SD_5['testing_t_window']),
                     p_stay_home=1.0,
-                    test_smart_duration=24.0 * days),
-
-                    # education close, social closes, rest reduced by 50%
-                    BetaMultiplierMeasureByType(
-                        t_window=Interval(0.0, 24.0 * weeks),
-                        beta_multiplier=tuned_site_multipliers),
-
-                    # 40 % less activite of all due to contact constraints
-                    SocialDistancingForAllMeasure(
-                        t_window=Interval(0.0, 24.0 * weeks),
-                        p_stay_home=tuned_p_stay_home)
+                    test_smart_duration=24.0 * days)
                 ]
-
                 res = run(testing_params_SD_5, m,
                           max_time_future, present_seeds)
                 summaries_SD_5[(days, contacts)].append(res)
-
                 print(days, contacts, policy, ' done.')
 
-            save_summary(summaries_SD_5, f'summaries_SD_5_and_measures_c{j}.pk')
-
-    save_summary(summaries_SD_5, 'summaries_SD_5_and_measures.pk')
-    # summaries_SD_5 = load_summary('summaries_SD_5.pk')
+    save_summary(summaries_SD_5, f'{args.outfile}.pk')
