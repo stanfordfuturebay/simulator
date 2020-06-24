@@ -1,2 +1,0 @@
-node["shop"="supermarket"]
-node["shop"="convenience"]

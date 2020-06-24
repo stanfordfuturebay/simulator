@@ -16,7 +16,7 @@ from lib.measures import (MeasureList, BetaMultiplierMeasure,
     SocialDistancingForAllMeasure, BetaMultiplierMeasureByType,
     SocialDistancingForPositiveMeasure, SocialDistancingByAgeMeasure, 
     SocialDistancingForSmartTracing, ComplianceForAllMeasure, SocialDistancingForKGroups,
-    ComplianceForEssentialWorkers, SocialDistancingForNonEssential) # emma
+    ComplianceForEssentialWorkers, SocialDistancingForNonEssential) 
 
 class DiseaseModel(object):
     """
@@ -58,7 +58,7 @@ class DiseaseModel(object):
         self.site_type = mob.site_type
         self.num_site_types = mob.num_site_types
         
-        self.essential_workers = mob.essential_workers # emma
+        self.essential_workers = mob.essential_workers 
         
         assert(self.num_age_groups == self.fatality_rates_by_age.shape[0])
         assert(self.num_age_groups == self.p_hospital_by_age.shape[0])
@@ -334,11 +334,11 @@ class DiseaseModel(object):
         self.measure_list.init_run(SocialDistancingForKGroups)
         
         self.measure_list.init_run(ComplianceForEssentialWorkers,
-                                   n_people=self.n_people) # emma
+                                   n_people=self.n_people)
         
         self.measure_list.init_run(SocialDistancingForNonEssential,
                                    n_people=self.n_people,
-                                   n_visits=max(self.mob.visit_counts)) # emma
+                                   n_visits=max(self.mob.visit_counts)) 
 
         # init state variables with seeds
         self.__init_run()
@@ -793,7 +793,7 @@ class DiseaseModel(object):
                 j=i, j_visit_id=visit_id) or 
             self.measure_list.is_contained(
                 SocialDistancingForKGroups, t=t,
-                j=i) or # emma
+                j=i) or 
             self.measure_list.is_contained(
                 SocialDistancingForNonEssential, t=t,
                 j=i, j_visit_id=visit_id,essential=self.mob.essential_workers[i])           
@@ -855,7 +855,7 @@ class DiseaseModel(object):
         is_i_not_compliant = (self.measure_list.is_contained(
             ComplianceForAllMeasure, t=t-self.test_smart_delta, j=i)or
             self.measure_list.is_contained(
-                ComplianceForEssentialWorkers, t=t-self.test_smart_delta,j=i,essential_workers=self.mob.essential_workers)) # emma
+                ComplianceForEssentialWorkers, t=t-self.test_smart_delta,j=i,essential_workers=self.mob.essential_workers)) 
             
         if is_i_not_compliant:
             return
@@ -879,7 +879,7 @@ class DiseaseModel(object):
             is_j_not_compliant = (self.measure_list.is_contained(
                 ComplianceForAllMeasure, t=t-self.test_smart_delta, j=j)or
                 self.measure_list.is_contained(
-                    ComplianceForEssentialWorkers, t=t-self.test_smart_delta,j=j,essential_workers=self.mob.essential_workers)) # emma
+                    ComplianceForEssentialWorkers, t=t-self.test_smart_delta,j=j,essential_workers=self.mob.essential_workers)) 
             
             if is_j_not_compliant:
                 continue
@@ -924,7 +924,7 @@ class DiseaseModel(object):
                             j=j)or
                         self.measure_list.is_contained(
                             SocialDistancingForNonEssential, t=next_contact,
-                            j=j, j_visit_id=j_visit_id, essential=self.mob.essential_workers[j]) # emma
+                            j=j, j_visit_id=j_visit_id, essential=self.mob.essential_workers[j]) 
                     ) 
                     
                     is_i_contained = (
@@ -942,7 +942,7 @@ class DiseaseModel(object):
                             j=i)or
                         self.measure_list.is_contained(
                             SocialDistancingForNonEssential, t=next_contact,
-                            j=i, j_visit_id=i_visit_id, essential=self.mob.essential_workers[j]) # emma
+                            j=i, j_visit_id=i_visit_id, essential=self.mob.essential_workers[j])
                     )
                     
                     # check hospitalization

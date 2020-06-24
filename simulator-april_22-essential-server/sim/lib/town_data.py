@@ -32,7 +32,7 @@ tile_level_dict = {
     20: 0.00025
 }
 
-def generate_population(bbox, population_per_age_group, density_files=None, tile_level=16, seed=None, density_site_loc=None,essential_prop_per_age_group=None): #emma
+def generate_population(bbox, population_per_age_group, density_files=None, tile_level=16, seed=None, density_site_loc=None,essential_prop_per_age_group=None): 
     
     # raise error if tile level is invalid
     assert (type(tile_level)==int and tile_level>=0 and tile_level<=20), 'Invalid tile level'
@@ -133,7 +133,7 @@ def generate_population(bbox, population_per_age_group, density_files=None, tile
     home_tile=[]
     tile_loc=[]
     i_tile=0
-    essential_workers=[] # emma
+    essential_workers=[]
     num_essential_workers = 0
     for _, t in tiles.iterrows():
         lat=t['lat']
@@ -152,7 +152,7 @@ def generate_population(bbox, population_per_age_group, density_files=None, tile
         people_age+=new_people_ages
         i_tile+=1
     
-         # emma
+       
         if essential_prop_per_age_group is not None:
 #             essential_workers+=[(np.random.rand()<essential_prop_per_age_group[new_people_ages[i]]) for i in range(len(new_people_ages))]
            for i in range(len(new_people_ages)):
@@ -182,7 +182,7 @@ def generate_population(bbox, population_per_age_group, density_files=None, tile
             essential_workers = None
     
     
-    return home_loc, people_age, home_tile, tile_loc, essential_workers, num_essential_workers # emma
+    return home_loc, people_age, home_tile, tile_loc, essential_workers, num_essential_workers
 
 def overpass_query(bbox, contents):
     overpass_bbox = str((bbox[0],bbox[2],bbox[1],bbox[3]))

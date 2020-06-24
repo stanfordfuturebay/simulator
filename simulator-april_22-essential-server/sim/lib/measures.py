@@ -101,7 +101,7 @@ class SocialDistancingForAllMeasure(Measure):
             return self.p_stay_home
         return 0.0
 
-# emma
+
 class SocialDistancingForNonEssential(Measure):
     """
     Social distancing measure. All the population is advised to stay home. Each
@@ -469,7 +469,7 @@ class ComplianceForAllMeasure(Measure):
             return self.p_compliance
         return 0.0
     
-# emma 
+
 class ComplianceForEssentialWorkers(Measure):
     """
     Compliance measure. All the population has a probability of not using tracking app. This
