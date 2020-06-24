@@ -1,0 +1,9 @@
+sim/*.pk
+sim/lib/mobility/*.pk
+sim/summaries/*.pk
+sim/maps/
+.ipynb_checkpoints/
+__pycache__/
+*.png
+.DS_STORE
+
