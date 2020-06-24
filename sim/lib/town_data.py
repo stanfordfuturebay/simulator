@@ -48,21 +48,33 @@ def generate_population(bbox, population_per_age_group, density_files=None, tile
     population = sum(population_per_age_group)
     
     if density_files is not None:
-
-        tiles=pd.DataFrame()
+        # Edited by Zihan: use the latest commit to generate population with density_files
+        pops=pd.DataFrame()
         for f in density_files:
             df = pd.read_csv(f)
             # read population files and select baseline density per tile
-            tiles = tiles.append(df[['lat','lon','Baseline: People']])
+            pops = pops.append(df[['lat','lon','Baseline: People']])
 
-        tiles = tiles.rename(columns={"Baseline: People": "pop"})
-        tiles = tiles.dropna(axis=0, how='any')
+        pops = pops.rename(columns={"Baseline: People": "pop"})
+        pops = pops.dropna(axis=0, how='any')
         
         # average over all days
-        tiles = tiles.groupby(['lat','lon'], as_index=False).mean()
+        pops = pops.groupby(['lat','lon'], as_index=False).mean()
 
         # discard tiles out of the bounding box
-        tiles = tiles.loc[(tiles['lat'] >= bbox[0]) & (tiles['lat'] <= bbox[1]) & (tiles['lon'] >= bbox[2]) & (tiles['lon'] <= bbox[3])]
+        pops = pops.loc[(pops['lat'] >= bbox[0]) & (pops['lat'] <= bbox[1]) & (pops['lon'] >= bbox[2]) & (pops['lon'] <= bbox[3])]
+		
+		# split the map into rectangular tiles
+        lat_arr = np.arange(bbox[0]+tile_size/2, bbox[1]-tile_size/2, tile_size)
+        lon_arr = np.arange(bbox[2]+tile_size/2, bbox[3]-tile_size/2, tile_size)
+        num_of_tiles = len(lat_arr)*len(lon_arr)
+
+        tiles = pd.DataFrame()
+        for lat in lat_arr:
+            for lon in lon_arr:
+                # compute the total population records in each tile
+                pops_in_tile = pops.loc[(pops['lat'] >= lat-tile_size/2) & (pops['lat'] <= lat+tile_size/2) & (pops['lon'] >= lon-tile_size/2) & (pops['lon'] <= lon+tile_size/2)]
+                tiles = tiles.append(pd.DataFrame(data={'lat': [lat], 'lon': [lon], 'pop': [sum(pops_in_tile['pop'])]}))
 
         # scale population density to real numbers
         tiles['pop'] /= sum(tiles['pop'])
@@ -153,7 +165,8 @@ def generate_population(bbox, population_per_age_group, density_files=None, tile
         if essential_prop_per_age_group is not None:
             essential_workers+=[(np.random.rand()<essential_prop_per_age_group[new_people_ages[i]]) for i in range(len(new_people_ages))]
         else:
-            essential_workers = None    
+            essential_workers = None
+    
     return home_loc, people_age, home_tile, tile_loc, essential_workers
 
 def overpass_query(bbox, contents):
@@ -164,6 +177,7 @@ def overpass_query(bbox, contents):
     query += '); out center;'
     return query
 
+# Edited by Zihan: replaced with generate_sites function in newer commits
 def generate_sites(bbox, query_files, site_based_density_file=None):
     
     overpass_url = "http://overpass-api.de/api/interpreter"
@@ -173,7 +187,7 @@ def generate_sites(bbox, query_files, site_based_density_file=None):
     density_site_loc=[]
 
     type_ind=0
-    for qf in query_files:
+    for q_ind, qf in enumerate(query_files):
         with open(qf, 'r') as q:
 
             # site type is extracted by the txt file name
@@ -188,27 +202,23 @@ def generate_sites(bbox, query_files, site_based_density_file=None):
 
             # generate and call overpass queries 
             response = requests.get(overpass_url, params={'data': overpass_query(bbox, contents)})
+            if response.status_code == 200:
+                print('Query ' + str(q_ind+1) + ' OK.')
+            else:
+                print('Query ' + str(q_ind+1) + ' returned http code ' + str(response.status_code) + '. Try again.')
+                return None, None, None, None
             data = response.json()
 
             # read sites latitude and longitude
-            ways=[]
-            nodes=[]
+            locs_to_add=[]
             for site in data['elements']:
                 if site['type']=='way':
-                    ways.append([site['center']['lat'], site['center']['lon']])
+                    locs_to_add.append([site['center']['lat'], site['center']['lon']])
                 elif site['type']=='node':
-                    nodes.append([site['lat'], site['lon']])
-            
-            # if there are ways in the query results discard all nodes
-            if ways==[] and nodes!=[]:
-                locs_to_add = nodes
-                site_type += len(nodes)*[type_ind]
-            elif ways!=[]:
-                locs_to_add = ways
-                site_type += len(ways)*[type_ind]
-            
+                    locs_to_add.append([site['lat'], site['lon']])
+
+            site_type += len(locs_to_add)*[type_ind]
             site_loc += locs_to_add
-            
             type_ind+=1
             
     # locations of this type are used to generate population density
@@ -222,6 +232,11 @@ def generate_sites(bbox, query_files, site_based_density_file=None):
 
             # generate and call overpass queries 
             response = requests.get(overpass_url, params={'data': overpass_query(bbox, contents)})
+            if response.status_code == 200:
+                print('Query ' + str(len(query_files)+1) + ' OK.')
+            else:
+                print('Query ' + str(len(query_files)+1) + ' returned http code ' + str(response.status_code) + '. Try again.')
+                return None, None, None, None
             data = response.json()
             
             # read sites latitude and longitude
