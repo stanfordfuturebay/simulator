@@ -47,7 +47,7 @@ if __name__ == '__main__':
                         help="Number of parallel threads to run simultaneously, capped at (number of available CPUs - 1)")
     parser.add_argument('--random_repeats',type=int, default=40, 
                         help="Number of random realizations to run. Use at least 40 for stable results")
-    parser.add_argument('--beta',type=float, default=1.1383, 
+    parser.add_argument('--beta',type=float, default=0.5, 
                         help="Site infectivity parameter for all site types") # TODO set different betas for each site type
     parser.add_argument('--mob_settings', type=str, default='lib/mobility/Tubingen_settings_10.pk', 
                         help="Path to mobility settings pickle file")
@@ -115,7 +115,7 @@ if __name__ == '__main__':
             'bus_stop': beta,
             'office': beta,
             'supermarket': beta}, 
-        'beta_household' : beta
+        'beta_household' : 0.0
     }
     print(f'inferred_params: {inferred_params}')
 
@@ -124,16 +124,12 @@ if __name__ == '__main__':
     def run(tparam, measure_list, t, local_seeds, dynamic_tracing=False):
         tic = time.perf_counter()
         # add standard measure of positives staying isolated
-#         measure_list +=  [
-#             SocialDistancingForPositiveMeasure(
-#                 t_window=Interval(0.0, t), p_stay_home=1.0),
-
-#             SocialDistancingForPositiveMeasureHousehold(
-#                 t_window=Interval(0.0, t), p_isolate=1.0)
-#         ]
         measure_list +=  [
             SocialDistancingForPositiveMeasure(
-                t_window=Interval(0.0, t), p_stay_home=1.0)
+                t_window=Interval(0.0, t), p_stay_home=1.0),
+
+            SocialDistancingForPositiveMeasureHousehold(
+                t_window=Interval(0.0, t), p_isolate=1.0)
         ]
         measure_list = MeasureList(measure_list)
 
