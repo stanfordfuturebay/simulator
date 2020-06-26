@@ -64,6 +64,7 @@ if __name__ == '__main__':
         2  # simulate 2 more days due to test lag
     days_future = 12 * 7  # projecting 12 weeks into the future
 
+    # Zihan's TODO: new_cases, resistant_cases, and fatality_cases for SF
     case_downsample = 100
     new_cases_ = collect_data_from_df('LK Tübingen', 'new', until=days_present)
     resistant_cases_ = collect_data_from_df(
@@ -77,8 +78,8 @@ if __name__ == '__main__':
     fatality_rates_by_age = (
         fatality_cases_[-1, :] / (new_cases_[-1, :] + fatality_cases_[-1, :] + resistant_cases_[-1, :]))
 
-    # Zihan: adjust the fatality rates to use for SF (for now)
-    fatality_rates_by_age = np.array([0.0, 0.0, 0.0, 0.0, 0.0005, 0.002, 0.0096, 0.1173])
+    # Zihan: fatality rates for SF 
+    fatality_rates_by_age = np.array([0.0, 0.0, 0.0021, 0.0021, 0.0021, 0.0032, 0.0365, 0.2077])
     print('Empirical fatality rates per age group:  ',
           fatality_rates_by_age.tolist())
 
@@ -93,7 +94,7 @@ if __name__ == '__main__':
     # The agegroups of new_cases and resistant_cases are inconsistent with mobility for SF. To be ajusted.
 
     # Define initial seed count (based on infection counts on March 10)
-
+    # Zihan's TODO: find/generate present_seeds for SF
     initial_seeds = {
         'expo': 1,
         'ipre': 1,
@@ -120,7 +121,7 @@ if __name__ == '__main__':
             'testing_frequency': 24.0,     # in hours
             # in hours (actual and self-report delay)
             'test_reporting_lag': 48.0,
-            'tests_per_batch': 10,       # assume 300 tests/day in LK Tübingen
+            'tests_per_batch': 10,       # assume 300 tests/day in LK Tübingen; Zihan's TODO: change to SF data
             'test_smart_delta': 24.0 * 3,  # in hours
             'test_smart_duration': 24.0 * 7,  # in hours
             'test_smart_action': 'isolate',
@@ -141,8 +142,9 @@ if __name__ == '__main__':
     # #### Set epidemic parameters as inferred using Bayesian optimization
 
     # inferred parameters (see paper)
+    # Zihan's TODO: generate for SF
     inferred_params = {
-        'betas': [1.1383] * 5,  # site infectivity by type
+        'betas': [1.1383] * 4,  # site infectivity by type
         'alpha': 0.3224,
         'mu': 0.2072
     }
