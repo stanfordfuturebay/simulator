@@ -122,7 +122,7 @@ if __name__ == '__main__':
             'bus_stop': beta,
             'office': beta,
             'supermarket': beta}, 
-        'beta_household' : 0.0
+        'beta_household' : beta
     }
     print(f'inferred_params: {inferred_params}')
 
