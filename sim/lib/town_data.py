@@ -54,7 +54,9 @@ def generate_population(bbox, population_per_age_group, density_file=None, tile_
 
         # read population density file
         pops = pd.read_csv(density_file)
-
+        pops = pops.dropna(axis=0, how='any')
+        pops = pops.groupby(['Lat','Lon'], as_index=False).mean()
+        
         # discard records out of the bounding box
         pops = pops.loc[(pops['Lat'] >= bbox[0]) & (pops['Lat'] <= bbox[1]) & (pops['Lon'] >= bbox[2]) & (pops['Lon'] <= bbox[3])]
         
