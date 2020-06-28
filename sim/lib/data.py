@@ -134,6 +134,11 @@ def collect_data_from_df(country, area, datatype, start_date_string, until=None,
         print('Can only specify `until` (days until end) or `end_date_string` (end date). ')
         exit(0)
 
+    ## HACK until Zihan gets case data ##
+    if area == 'SF':
+        country = 'GER'
+        area = 'TU'
+        
     if country == 'GER':
 
         if datatype == 'new':
