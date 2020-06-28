@@ -55,8 +55,8 @@ if __name__ == '__main__':
                         help="Path to mobility settings pickle file")
     parser.add_argument('--seed', type=int, default=0,
                         help="Set random seed for reproducibility")
-    parser.add_argument('--area', type=str, default='TU')
-    parser.add_argument('--country', type=str, default='GER')
+    parser.add_argument('--area', type=str, default='SF')
+    parser.add_argument('--country', type=str, default='US')
     args = parser.parse_args()
     print(args)
     

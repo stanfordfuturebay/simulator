@@ -58,8 +58,8 @@ if __name__ == '__main__':
                         help="A list of values [0,1] representing either the proportion of the population who complies with contact tracing, or the proportion of the population that are essential workers, assuming all essential workers comply with contact tracing.")
     parser.add_argument('--only_essential',action='store_true', default=False,
                         help="Only run experiments for different proportions of essential workers, skip compliance levels for everyone")
-    parser.add_argument('--area', type=str, default='TU')
-    parser.add_argument('--country', type=str, default='GER')
+    parser.add_argument('--area', type=str, default='SF')
+    parser.add_argument('--country', type=str, default='US')
     args = parser.parse_args()
     print(args)
     
