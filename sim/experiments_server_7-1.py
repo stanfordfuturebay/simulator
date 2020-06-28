@@ -49,6 +49,8 @@ if __name__ == '__main__':
                         help="Number of random realizations to run. Use at least 40 for stable results")
     parser.add_argument('--beta',type=float, default=0.5, 
                         help="Site infectivity parameter for all site types") # TODO set different betas for each site type
+    parser.add_argument('--beta_household', type=float, default=0.5,
+                        help="Infectivity within a household")
     parser.add_argument('--mob_settings', type=str, default='lib/mobility/Tubingen_settings_10.pk', 
                         help="Path to mobility settings pickle file")
     parser.add_argument('--seed', type=int, default=0,
@@ -115,7 +117,7 @@ if __name__ == '__main__':
             'bus_stop': beta,
             'office': beta,
             'supermarket': beta}, 
-        'beta_household' : beta
+        'beta_household' : args.beta_household
     }
     print(f'inferred_params: {inferred_params}')
 
