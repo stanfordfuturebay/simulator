@@ -2,6 +2,7 @@ import pickle
 import os
 import numpy as np
 from lib.town_data import generate_population
+import pdb
 
 #### Define standard testing parameters, same used for inference
 def standard_testing(max_time, daily_increase):
@@ -65,6 +66,22 @@ def generate_sf_essential(prop_essential_total):
     _, _, _, _, essential_workers = generate_population(density_files=density_files, bbox=bbox, population_per_age_group=population_per_age_group, tile_level=16, seed=42, essential_prop_per_age_group=essential_prop_per_age_group)
     
     return essential_workers
+    
+    
+def num_essential_infected(summary):
+    # individuals in any of these states are either currently infected or were once infected (dead or recovered)
+    has_been_infected_states = ['expo','ipre','isym','iasy','resi','dead']
+#     num_essential_infected = [0 for i in range(summary.random_repeats)]
+    result = {}
+#     pdb.set_trace()
+    for state in has_been_infected_states:
+        pdb.set_trace()
+        arr = summary.state[state]
+        result[state] = arr[summary.essential_workers==True].sum() / float(summary.random_repeats)
+    return result
+    
+    
+    
     
     
     

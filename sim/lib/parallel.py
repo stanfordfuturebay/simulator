@@ -1,4 +1,4 @@
-
+import pdb
 import time
 import bisect
 import copy
@@ -145,6 +145,7 @@ def pp_launch(r, kwargs, distributions, params, initial_counts, testing_params, 
         'children_count_iasy': sim.children_count_iasy,
         'children_count_ipre': sim.children_count_ipre,
         'children_count_isym': sim.children_count_isym,
+        'essential_workers': sim.mob.essential_workers
     }
     if STORE_MOB:
         result['mob'] = sim.mob
@@ -204,5 +205,9 @@ def launch_parallel_simulations(mob_settings, distributions, random_repeats, cpu
         summary.children_count_iasy[r, :] = result['children_count_iasy']
         summary.children_count_ipre[r, :] = result['children_count_ipre']
         summary.children_count_isym[r, :] = result['children_count_isym']
-
+        
+        '''Laura Hack'''
+        if result['essential_workers'] is not None:
+            summary.essential_workers[0, :] = result['essential_workers']
+            
     return summary
