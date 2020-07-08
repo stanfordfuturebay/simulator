@@ -89,6 +89,7 @@ class ParallelSummary(object):
         self.mob = []
         
         self.people_age = np.zeros((repeats, n_people), dtype='int')
+        self.essential_workers = np.zeros((repeats, n_people), dtype='int')
 
         self.children_count_iasy = np.zeros((repeats, n_people), dtype='int')
         self.children_count_ipre = np.zeros((repeats, n_people), dtype='int')
@@ -110,6 +111,10 @@ def create_ParallelSummary_from_DiseaseModel(sim):
         summary.mob.append(sim.mob)
     
     summary.people_age[0, :] = sim.mob.people_age
+
+    '''Laura Hack'''
+    if sim.mob.essential_workers is not None:
+        summary.essential_workers[0, :] = sim.mob.essential_workers
         
     summary.children_count_iasy[0, :] = sim.children_count_iasy
     summary.children_count_ipre[0, :] = sim.children_count_ipre
