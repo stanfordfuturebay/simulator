@@ -35,7 +35,7 @@ from botorch.optim import gen_batch_initial_conditions
 
 from lib.inference_kg import qKnowledgeGradient, gen_one_shot_kg_initial_conditions
 from lib.distributions import CovidDistributions
-from lib.settings.calibration_settings import (
+from lib.settings.calibration_settings_SF import (
     settings_model_param_bounds, 
     settings_measures_param_bounds, 
     settings_testing_params,
@@ -88,7 +88,6 @@ class CalibrationLogger:
             self.headers += [
                 'b/educat',
                 'b/social',
-                'b/bus_st',
                 'b/office',
                 'b/superm',
                 'b/househ',
@@ -144,7 +143,6 @@ class CalibrationLogger:
             fields += [
                 f"{d['betas']['education']:8.4f}",
                 f"{d['betas']['social']:8.4f}",
-                f"{d['betas']['bus_stop']:8.4f}",
                 f"{d['betas']['office']:8.4f}",
                 f"{d['betas']['supermarket']:8.4f}",
                 f"{d['beta_household']:8.4f}",
@@ -239,7 +237,6 @@ def pdict_to_parr(d, measures_optimized):
         arr = torch.stack([
             torch.tensor(d['betas']['education']),
             torch.tensor(d['betas']['social']),
-            torch.tensor(d['betas']['bus_stop']),
             torch.tensor(d['betas']['office']),
             torch.tensor(d['betas']['supermarket']),
             torch.tensor(d['beta_household']),
@@ -260,11 +257,10 @@ def parr_to_pdict(arr, measures_optimized):
             'betas': {
                 'education': arr[0].tolist(),
                 'social': arr[1].tolist(),
-                'bus_stop': arr[2].tolist(),
-                'office': arr[3].tolist(),
-                'supermarket': arr[4].tolist(),
+                'office': arr[2].tolist(),
+                'supermarket': arr[3].tolist(),
             },
-            'beta_household': arr[5].tolist(),
+            'beta_household': arr[4].tolist(),
         }
         return d
 
@@ -405,9 +401,15 @@ def make_bayes_opt_functions(args):
         exit(0)
 
     # Scale down cases based on number of people in town, region, and downsampling
+    #new_cases = np.ceil(
+    #    (new_cases_ * mob.num_people_unscaled) /
+    #    (mob.downsample * mob.region_population))
+
+    # Zihan's edit: case data is for town, not region
     new_cases = np.ceil(
-        (new_cases_ * mob.num_people_unscaled) /
-        (mob.downsample * mob.region_population))
+        (new_cases_) /
+        (mob.downsample))
+    new_cases = np.nan_to_num(new_cases) # the original code uses nan for 0 cases and leads to error
     num_age_groups = new_cases.shape[1]
     header.append('Downsampling : ' + str(mob.downsample))
     header.append('Town population: ' + str(mob.num_people))
@@ -559,7 +561,7 @@ def make_bayes_opt_functions(args):
             # close sites if specified
             if args.measures_close:
                 beta_multipliers = {'education': 1.0, 'social': 1.0,
-                                'bus_stop': 1.0, 'office': 1.0, 'supermarket': 1.0}
+                               'office': 1.0, 'supermarket': 1.0}
                 for category in args.measures_close:
                     if category in beta_multipliers.keys():
                         beta_multipliers[category] = 0.0

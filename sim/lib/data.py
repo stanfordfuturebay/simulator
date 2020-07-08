@@ -190,6 +190,32 @@ def collect_data_from_df(country, area, datatype, start_date_string, until=None,
                 data[t, agegroup] += df_tmp[(df_tmp.days <= t) & (df_tmp.age_group == agegroup)].shape[0]
             
         return data
+	
+    elif country == 'US' and area == 'SF':
+
+        data = np.array([[0,0,0,0,0,1,0,0], # Mar 4
+								[0,0,0,0,2,3,0,0],
+								[0,0,0,1,3,3,0,0],
+								[0,0,0,2,5,3,0,0],
+								[0,0,0,2,5,3,0,0],
+								[0,0,0,2,7,3,0,0],
+								[0,0,0,2,11,4,0,0],
+								[0,0,0,4,16,9,0,0],
+								[0,0,0,4,18,12,0,0],
+								[0,0,0,5,25,16,0,0],
+								[0,0,0,7,30,17,3,0],
+								[0,0,0,8,35,17,9,0],
+								[0,0,0,9,56,30,15,0],
+								[0,0,0,11,72,35,17,4],
+								[0,0,0,14,81,41,19,5],
+								[0,0,0,16,89,46,22,6]]) # Mar 19
+        if start_date_string != "2020-03-04":
+            print("calibrate: start date for SF must be 2020-03-04")
+            exit(0)
+        if end_date_string != "2020-03-19":
+            print("calibrate: end date for SF must be 2020-03-19")
+            exit(0)			
+        return data
 
     else:
         raise NotImplementedError('Invalid country requested.')
