@@ -18,7 +18,8 @@ from lib.measures import (MeasureList, BetaMultiplierMeasureBySite,
     SocialDistancingPerStateMeasure, SocialDistancingForPositiveMeasure,
     SocialDistancingForPositiveMeasureHousehold,
     SocialDistancingByAgeMeasure, SocialDistancingForSmartTracing,
-    ComplianceForAllMeasure, SocialDistancingForKGroups)
+    ComplianceForAllMeasure, SocialDistancingForKGroups,
+    ComplianceForEssentialWorkers)
 
 TO_HOURS = 24.0
 
@@ -363,6 +364,9 @@ class DiseaseModel(object):
                                    n_visits=max(self.mob.visit_counts))    
 
         self.measure_list.init_run(SocialDistancingForKGroups)
+        
+        self.measure_list.init_run(ComplianceForEssentialWorkers,
+                                   essential_workers=self.mob.essential_workers)
 
         # init state variables with seeds
         self.__init_run()
@@ -1041,8 +1045,10 @@ class DiseaseModel(object):
                 self.state_ended_at['posi'][i] = t
 
         # smart tracing
-        is_i_compliant = self.measure_list.is_compliant(
-            ComplianceForAllMeasure, t=t-self.test_smart_delta, j=i)
+        is_i_compliant = (self.measure_list.is_compliant(
+                                ComplianceForAllMeasure, t=t-self.test_smart_delta, j=i) or
+                         self.measure_list.is_compliant(
+                                ComplianceForEssentialWorkers, t=t-self.test_smart_delta, j=i))
 
         # if i is not compliant, skip
         if not is_i_compliant:
@@ -1081,8 +1087,10 @@ class DiseaseModel(object):
         
         for j in valid_contacts:
             # check compliance
-            is_j_compliant = self.measure_list.is_compliant(
-                ComplianceForAllMeasure, t=t-self.test_smart_delta, j=j)
+            is_j_compliant = (self.measure_list.is_compliant(
+                                ComplianceForAllMeasure, t=t-self.test_smart_delta, j=j) or
+                             self.measure_list.is_compliant(
+                                ComplianceForEssentialWorkers, t=t-self.test_smart_delta, j=j))
             
             # if j is not compliant, skip
             if not is_j_compliant:

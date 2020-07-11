@@ -622,7 +622,62 @@ class ComplianceForAllMeasure(Measure):
             return self.p_compliance
         return 0.0
     
+class ComplianceForEssentialWorkers(Measure):
+    """
+    Compliance measure. All the population has a probability of not using tracking app. This
+    influences the ability of smart tracing to track contacts. Each individual uses a tracking
+    app with some probability.
+    """
+
+    def __init__(self, t_window, p_compliance):
+        """
+
+        Parameters
+        ----------
+        t_window : Interval
+            Time window during which the measure is active
+        p_compliance : float
+            Probability that individual is compliant, should be in [0,1]
+        """
+        # Init time window
+        super().__init__(t_window)
+
+        # Init probability of respecting measure
+        if (not isinstance(p_compliance, float)) or (p_compliance < 0):
+            raise ValueError("`compliance` should be a non-negative float")
+        self.p_compliance = p_compliance
+
+    def init_run(self, essential_workers):
+        """Init the measure for this run by sampling the compliance of each individual
+
+        Parameters
+        ----------
+        n_people : int
+            Number of people in the population
+        """
+        # Sample the outcome of the measure for each individual
+        n_people = len(essential_workers)
+        self.adjusted_p_compliance = self.p_compliance * (float(n_people)/essential_workers.sum())
+        
+        if self.adjusted_p_compliance <= 1.0:
+            self.bernoulli_compliant = [np.random.binomial(1, self.adjusted_p_compliance) if essential_workers[i]==True else 0 for i in range(n_people)]
+        else:
+            non_essential_p_compliance = ((self.p_compliance * n_people)-essential_workers.sum()) / n_people
+            self.bernoulli_compliant = [1 if essential_workers[i]==True else np.random.binomial(1, non_essential_p_compliance) for i in range(n_people)]
+        self._is_init = True
+
+    @enforce_init_run
+    def is_compliant(self, *, j, t):
+        """Indicate if individual `j` is compliant 
+        """
+        return self.bernoulli_compliant[j] and self._in_window(t)
     
+    def is_compliant_prob(self, *, j, t):
+        """Returns probability of compliance for individual `j` at time `t`
+        """
+        if self._in_window(t):
+            return self.adjusted_p_compliance
+        return 0.0
 
 """
 =========================== OTHERS ===========================
