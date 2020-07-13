@@ -193,28 +193,18 @@ def collect_data_from_df(country, area, datatype, start_date_string, until=None,
 	
     elif country == 'US' and area == 'SF':
 
-        data = np.array([[0,0,0,0,0,1,0,0], # Mar 4
-								[0,0,0,0,2,3,0,0],
-								[0,0,0,1,3,3,0,0],
-								[0,0,0,2,5,3,0,0],
-								[0,0,0,2,5,3,0,0],
-								[0,0,0,2,7,3,0,0],
-								[0,0,0,2,11,4,0,0],
-								[0,0,0,4,16,9,0,0],
-								[0,0,0,4,18,12,0,0],
-								[0,0,0,5,25,16,0,0],
-								[0,0,0,7,30,17,3,0],
-								[0,0,0,8,35,17,9,0],
-								[0,0,0,9,56,30,15,0],
-								[0,0,0,11,72,35,17,4],
-								[0,0,0,14,81,41,19,5],
-								[0,0,0,16,89,46,22,6]]) # Mar 19
-        if start_date_string != "2020-03-04":
-            print("calibrate: start date for SF must be 2020-03-04")
-            exit(0)
-        if end_date_string != "2020-03-19":
-            print("calibrate: end date for SF must be 2020-03-19")
-            exit(0)			
+        df = pd.read_csv('lib/data/cases/SF_COVID19.csv', header=0, delimiter=',')
+        cases_full_range = np.array(df[['0-4','5-14','15-19','20-24','25-44','45-59','60-79','80+']])
+        start_index = df.date[df.date==start_date_string].index[0]
+        if end_date_string != None:
+            end_index = df.date[df.date==end_date_string].index[0]
+            data = cases_full_range[start_index:end_index+1,:]
+        elif until != None:
+            end_index = start_index + until
+            data = cases_full_range[start_index:end_index+1,:]
+        else:   
+            data = cases_full_range[start_index:,:]	 # to the end of the full range 
+            print('End Date and Days Until End not specified. Use end date: ', df.iloc[-1].date)
         return data
 
     else:

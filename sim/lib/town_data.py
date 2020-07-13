@@ -263,7 +263,7 @@ def overpass_query(bbox, contents):
     query += '); out center;'
     return query
 
-def generate_sites(bbox, query_files, site_based_density_file=None):
+def generate_sites(bbox, query_files, sites_path, site_based_density_file=None):
     
     overpass_url = "http://overpass-api.de/api/interpreter"
     site_loc=[]
@@ -272,6 +272,27 @@ def generate_sites(bbox, query_files, site_based_density_file=None):
     density_site_loc=[]
 
     type_ind=0
+    # Zihan: count the number of offices with level info
+    level_height = 3 # 3m per level
+    # First read supermarkets
+    spmkt = False
+    try: 
+        with open(sites_path+'/supermarket.txt', 'r') as q:
+
+            # site type is extracted by the txt file name
+            s_type = 'supermarket'
+
+            # read all query parameters
+            contents = q.readlines()
+            contents = [c for c in contents if c!='']
+
+            # generate and call overpass queries 
+            response = requests.get(overpass_url, params={'data': overpass_query(bbox, contents)})
+            data_supermarket = response.json()
+            supermarkets_sites = data_supermarket['elements']
+            spmkt = True
+    except:
+        print('No supermarket in query files.')
     for q_ind, qf in enumerate(query_files):
         with open(qf, 'r') as q:
 
@@ -297,10 +318,24 @@ def generate_sites(bbox, query_files, site_based_density_file=None):
             # read sites latitude and longitude
             locs_to_add=[]
             for site in data['elements']:
-                if site['type']=='way':
-                    locs_to_add.append([site['center']['lat'], site['center']['lon']])
-                elif site['type']=='node':
-                    locs_to_add.append([site['lat'], site['lon']])
+                if s_type == "office" and spmkt == True:
+                    if site in supermarkets_sites:
+                        continue # skip sites included in the supermarket type.
+                if s_type == "office" and (site.get('tags').get('building:levels') != None or site.get('tags').get('height') != None):
+                    if site.get('tags').get('building:levels') != None:
+                        levels = int(site.get('tags').get('building:levels'))				
+                    else:
+                        levels = round(float(str.split(site.get('tags').get('height'))[0])/level_height)
+                    for level in range(levels): # each level is an office site
+                        if site['type']=='way':
+                            locs_to_add.append([site['center']['lat'], site['center']['lon']])
+                        elif site['type']=='node':
+                            locs_to_add.append([site['lat'], site['lon']])
+                else:
+                    if site['type']=='way':
+                        locs_to_add.append([site['center']['lat'], site['center']['lon']])
+                    elif site['type']=='node':
+                        locs_to_add.append([site['lat'], site['lon']])
 
             site_type += len(locs_to_add)*[type_ind]
             site_loc += locs_to_add
