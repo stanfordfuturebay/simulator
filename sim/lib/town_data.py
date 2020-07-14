@@ -272,9 +272,9 @@ def generate_sites(bbox, query_files, sites_path, site_based_density_file=None):
     density_site_loc=[]
 
     type_ind=0
-    # Zihan: count the number of offices with level info
+    # Zihan: subdivide offices with levels or height information into multiple office sites
     level_height = 3 # 3m per level
-    # First read supermarkets
+    # First read supermarkets if queried
     spmkt = False
     try: 
         with open(sites_path+'/supermarket.txt', 'r') as q:
