@@ -51,7 +51,7 @@ if __name__ == '__main__':
                         help="Site infectivity parameter for all site types") # TODO set different betas for each site type
     parser.add_argument('--beta_household', type=float, default=0.5,
                         help="Infectivity within a household")
-    parser.add_argument('--mob_settings', type=str, default='lib/mobility/Tubingen_settings_10.pk', 
+    parser.add_argument('--mob_settings', type=str, default='lib/mobility/San_Francisco_settings_100.pk', 
                         help="Path to mobility settings pickle file")
     parser.add_argument('--seed', type=int, default=0,
                         help="Set random seed for reproducibility")
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     c = args.seed  # seed
     
     # mobility settings
-    from lib.settings.town_settings_tubingen import *
+    from lib.settings.town_settings_san_francisco import *
     mob_settings = args.mob_settings
     area = args.area
     country = args.country
@@ -170,9 +170,9 @@ if __name__ == '__main__':
 
     summaries_SD_6 = dict()
 
-    p_compliance = [0.0, 0.1, 0.25, 0.5, 0.75, 1.0]
+    p_compliance = [0.0, 0.5, 1.0]
 
-    for policy in ['basic','advanced']:
+    for policy in ['advanced']:
         summaries_ = []
         testing_params_SD_6['smart_tracing'] = policy
 
