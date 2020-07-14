@@ -66,7 +66,7 @@ if __name__ == '__main__':
     c = args.seed  # seed
     
     # mobility settings
-    from lib.settings.town_settings_san_francisco import *
+    from lib.settings.town_settings_sanfrancisco import *
     mob_settings = args.mob_settings
     area = args.area
     country = args.country
