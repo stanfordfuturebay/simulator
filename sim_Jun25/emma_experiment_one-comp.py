@@ -412,21 +412,21 @@ for essential_to_total_ratio in essential_to_total_ratio_list:
             print('all', p, ' done.')
 
         
-#        for p_essential in p_compliance_essential:
+        for p_essential in p_compliance_essential:
 
-#            m = [SocialDistancingForSmartTracing(
-#                t_window=Interval(*testing_params_SD_6['testing_t_window']),
-#                p_stay_home=1.0,
-#                test_smart_duration=24.0 * isolation_days_SD_6),
-#                ComplianceForEssentialWorkers(
-#                t_window=Interval(*testing_params_SD_6['testing_t_window']),
-#                p_compliance=p_essential)
-#            ]
-#            res = run(testing_params_SD_6, m, max_time, initial_seeds)
-#            summaries_.append(res)
+            m = [SocialDistancingForSmartTracing(
+                t_window=Interval(*testing_params_SD_6['testing_t_window']),
+                p_stay_home=1.0,
+                test_smart_duration=24.0 * isolation_days_SD_6),
+                ComplianceForEssentialWorkers(
+                t_window=Interval(*testing_params_SD_6['testing_t_window']),
+                p_compliance=p_essential)
+            ]
+            res = run(testing_params_SD_6, m, max_time, initial_seeds)
+            summaries_.append(res)
 
-#            print('essential', p_essential, ' done.')
+            print('essential', p_essential, ' done.')
 
     print('essential prop',essential_to_total_ratio,' done.')        
 summaries_sf[policy] = summaries_
-save_summary(summaries_sf,'sf_comp'+str(p_compliance)+'_repeats'+str(random_repeats)+'_onlyall_'+mob_settings)
+save_summary(summaries_sf,'sf_comp'+str(p_compliance)+'_repeats'+str(random_repeats)+'_'+mob_settings)
