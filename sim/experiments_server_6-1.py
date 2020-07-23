@@ -182,7 +182,7 @@ if __name__ == '__main__':
 
     
     isolation_days = [7] # how many days selected people have to stay in isolation
-    contacts_isolated = [10, 25] # how many contacts are isolated in the `test_smart_delta` window
+    contacts_isolated = [25] # how many contacts are isolated in the `test_smart_delta` window
 
     
     summaries_SD_5 = dict()
