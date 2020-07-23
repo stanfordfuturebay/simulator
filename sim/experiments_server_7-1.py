@@ -51,12 +51,12 @@ if __name__ == '__main__':
                         help="Site infectivity parameter for all site types") # TODO set different betas for each site type
     parser.add_argument('--beta_household', type=float, default=0.5,
                         help="Infectivity within a household")
-    parser.add_argument('--mob_settings', type=str, default='lib/mobility/San_Francisco_settings_100.pk', 
+    parser.add_argument('--mob_settings', type=str, default='lib/mobility/Tubingen_settings_10.pk', 
                         help="Path to mobility settings pickle file")
     parser.add_argument('--seed', type=int, default=0,
                         help="Set random seed for reproducibility")
-    parser.add_argument('--area', type=str, default='SF')
-    parser.add_argument('--country', type=str, default='US')
+    parser.add_argument('--area', type=str, default='TU')
+    parser.add_argument('--country', type=str, default='GER')
     args = parser.parse_args()
     print(args)
     
@@ -66,10 +66,15 @@ if __name__ == '__main__':
     c = args.seed  # seed
     
     # mobility settings
-    from lib.settings.town_settings_sanfrancisco import *
+    if args.area=='SF':
+        from lib.settings.town_settings_sanfrancisco import *
+        country='US'
+    else:
+        from lib.settings.town_settings_tubingen import *
+        country='GER'
     mob_settings = args.mob_settings
     area = args.area
-    country = args.country
+#     country = args.country
     
     with open(mob_settings, 'rb') as fp:
         obj = pickle.load(fp)

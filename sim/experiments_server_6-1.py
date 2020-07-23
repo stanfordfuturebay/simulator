@@ -57,8 +57,8 @@ if __name__ == '__main__':
                         help="Path to mobility settings pickle file")
     parser.add_argument('--seed', type=int, default=0,
                         help="Set random seed for reproducibility")
-    parser.add_argument('--area', type=str, default='SF')
-    parser.add_argument('--country', type=str, default='US')
+    parser.add_argument('--area', type=str, default='TU')
+    parser.add_argument('--country', type=str, default='GER')
     args = parser.parse_args()
     print(args)
     
@@ -68,10 +68,15 @@ if __name__ == '__main__':
     c = args.seed  # seed
     
     # mobility settings
-    from lib.settings.town_settings_tubingen import *
+    if args.area=='SF':
+        from lib.settings.town_settings_sanfrancisco import *
+        country='US'
+    else:
+        from lib.settings.town_settings_tubingen import *
+        country='GER'
     mob_settings = args.mob_settings
     area = args.area
-    country = args.country
+#     country = args.country
     
     with open(mob_settings, 'rb') as fp:
         obj = pickle.load(fp)
