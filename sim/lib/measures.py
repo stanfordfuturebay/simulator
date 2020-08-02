@@ -741,7 +741,11 @@ class MeasureList:
         # not necessarily related to containment
         if m is not None:  
             return m.is_compliant(t=t, **kwargs)
-        return True  # No active compliance measure
+        '''Laura change'''
+        if measure_type==ComplianceForEssentialWorkers:
+            return False
+        else: return True
+#         return True  # No active compliance measure
     
     def start_containment(self, measure_type, t, **kwargs):
         m = self.find(measure_type, t)
