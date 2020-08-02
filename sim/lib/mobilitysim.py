@@ -386,9 +386,8 @@ class MobilitySimulator:
             self.home_tile=None
             self.tile_site_dist=None
             
-            '''Laura Hack'''
-            self.essential_workers = None
-
+            '''Laura Change'''
+            self.essential_workers = np.array([False for i in range(self.num_people)]) if essential_workers is None else np.array(essential_workers)
         elif real:
 
             self.mode = 'real'
@@ -432,7 +431,7 @@ class MobilitySimulator:
             
             # Init variables for essential workers
             # Note: any variables pertaining to essential workers is ignore if mode is 'synthetic'
-            self.essential_workers = [False for i in range(self.num_people)] if essential_workers is None else essential_workers[:]
+            self.essential_workers = np.array([False for i in range(self.num_people)]) if essential_workers is None else np.array(essential_workers)
             self.essential_mob_rate_per_age_per_type = self.mob_rate_per_age_per_type if essential_mob_rate_per_type is None else np.tile(essential_mob_rate_per_type,(self.num_age_groups,1))
             self.essential_dur_mean_per_type = self.dur_mean_per_type if essential_dur_mean_per_type is None else np.array(essential_dur_mean_per_type)
             self.essential_variety_per_type = self.variety_per_type if essential_variety_per_type is None else np.array(essential_variety_per_type)
