@@ -279,6 +279,9 @@ def generate_sites(bbox, query_files, site_based_density_file=None):
     site_dict={}
     density_site_loc=[]
 
+    '''Laura Change'''
+    query_files.sort()
+    
     type_ind=0
     for q_ind, qf in enumerate(query_files):
         with open(qf, 'r') as q:
@@ -340,7 +343,6 @@ def generate_sites(bbox, query_files, site_based_density_file=None):
                 elif site['type']=='node':
                     density_site_loc.append([site['lat'], site['lon']])
             
-
     return site_loc, site_type, site_dict, density_site_loc
 
 def compute_distances(site_loc, tile_loc):
