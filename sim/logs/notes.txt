@@ -1,0 +1,2 @@
+analyze all settting with relatively good objectives. Variation? Are the results really sensitive to parameters?
+statistical analysis of all the results?

@@ -82,7 +82,12 @@ class CalibrationLogger:
 
         if self.measures_optimized:
             self.headers += [
-                '  p_home'
+                '  p_home',
+                'b/educat',
+                'b/social',
+                'b/office',
+                'b/superm',
+                'b/househ',
             ]
         else:
             self.headers += [
@@ -137,7 +142,12 @@ class CalibrationLogger:
 
         if self.measures_optimized:
             fields += [
-                f"{d['p_stay_home']:8.4f}"
+                f"{d['p_stay_home']:8.4f}",
+                f"{d['betas']['education']:8.4f}",
+                f"{d['betas']['social']:8.4f}",
+                f"{d['betas']['office']:8.4f}",
+                f"{d['betas']['supermarket']:8.4f}",
+                f"{d['beta_household']:8.4f}",
             ]
         else:
             fields += [
@@ -230,6 +240,11 @@ def pdict_to_parr(d, measures_optimized):
     if measures_optimized:
         arr = torch.stack([
             torch.tensor(d['p_stay_home']),
+            torch.tensor(d['betas']['education']),
+            torch.tensor(d['betas']['social']),
+            torch.tensor(d['betas']['office']),
+            torch.tensor(d['betas']['supermarket']),
+            torch.tensor(d['beta_household']),
         ])
         return arr
 
@@ -249,6 +264,13 @@ def parr_to_pdict(arr, measures_optimized):
     if measures_optimized:
         d = {
             'p_stay_home': arr[0].tolist(),
+            'betas': {
+                'education': arr[1].tolist(),
+                'social': arr[2].tolist(),
+                'office': arr[3].tolist(),
+                'supermarket': arr[4].tolist(),
+            },
+            'beta_household': arr[5].tolist(),
         }
         return d
 
@@ -578,7 +600,8 @@ def make_bayes_opt_functions(args):
             kwargs['measure_list'] = MeasureList(measure_list_)
 
             # get optimized model paramters for this country and area
-            calibrated_model_params = settings_optimized_town_params[args.country][args.area]
+            # calibrated_model_params = settings_optimized_town_params[args.country][args.area]
+            calibrated_model_params = measure_params
             if calibrated_model_params is None:
                 raise ValueError(f'Cannot optimize measures for {args.country}-{args.area} because model parameters ' 
                                   'have not been fitted yet. Set values in `calibration_settings.py`')

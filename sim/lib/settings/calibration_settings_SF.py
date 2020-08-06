@@ -8,13 +8,13 @@ TO_HOURS = 24.0
 settings_data = {
     'verbose' : True,
     'use_households' : True,
-    'data_start_date': '2020-03-10',
+    'data_start_date': '2020-03-04',
 }
 
 settings_simulation = {
-    'n_init_samples': 20,  # initial random evaluations
+    'n_init_samples': 20,  # initial random evaluations (use n_init_samples simulations results to initialize the model)
     'n_iterations': 100,  # iterations of BO (500 in original code)
-    'simulation_roll_outs': 40, # roll-outs done in parallel per parameter setting
+    'simulation_roll_outs': 40, # roll-outs done in parallel per parameter setting (number of random repeats in each iteration)
     'cpu_count':  multiprocessing.cpu_count(), # cpus used for parallel computation
     'dynamic_tracing' : True,
 }
@@ -22,16 +22,23 @@ settings_simulation = {
 # parameter bounds
 settings_model_param_bounds = {
     'betas': {
-        'education': [0.0, 1.5],
-        'social': [0.0, 1.5],
-        'office': [0.0, 1.5],
-        'supermarket': [0.0, 1.5],
+        'education': [0.0, 0.5],
+        'social': [0.0, 0.5],
+        'office': [0.0, 0.5],
+        'supermarket': [0.0, 0.5],
     },
-    'beta_household': [0.0, 1.5],
+    'beta_household': [0.0, 0.5],
 }
 
 settings_measures_param_bounds = {
-    'p_stay_home': [0.0, 1.0],
+    'p_stay_home': [0.5, 0.5],
+    'betas': {
+        'education': [0.04, 0.04],
+        'social': [0.04, 0.04],
+        'office': [0.04, 0.04],
+        'supermarket': [0.0, 1.5],
+    },
+    'beta_household': [0.04, 0.04],
 }
 
 # set testing parameters
@@ -89,7 +96,7 @@ settings_optimized_town_params = {
 # lockdown dates
 settings_lockdown_dates = {
     'US': {
-        'start' : '03-17-2020',
+        'start' : '05-17-2020',
         'end': '08-01-2020', # unknown
     }
 }
