@@ -96,7 +96,7 @@ settings_optimized_town_params = {
 # lockdown dates
 settings_lockdown_dates = {
     'US': {
-        'start' : '05-17-2020',
+        'start' : '03-17-2020',
         'end': '08-01-2020', # unknown
     }
 }
