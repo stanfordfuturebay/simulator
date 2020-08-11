@@ -744,6 +744,9 @@ class MeasureList:
         '''Laura change'''
         if measure_type==ComplianceForEssentialWorkers:
             return False
+        if (measure_type==ComplianceForAllMeasure) and (self.find(ComplianceForEssentialWorkers,t) is not None):
+            return False
+        '''end'''
         else: return True
 #         return True  # No active compliance measure
     
