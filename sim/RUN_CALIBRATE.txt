@@ -1,0 +1,1 @@
+python3 calibrate_SF.py --country "US" --area "SF" --mob "lib/mobility/San_Francisco_settings_100.pk" --start "2020-03-04" --end "2020-04-24" --measures_optimized --measures_close education social office --filename calibartion_beta_edu_sens_01
