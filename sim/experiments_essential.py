@@ -1,3 +1,4 @@
+from lib.inference import *
 from lib.town_maps import MapIllustrator
 from lib.town_data import generate_population, generate_sites, compute_distances
 from lib.measures import (
@@ -9,7 +10,6 @@ from lib.measures import (
     SocialDistancingByAgeMeasure,
     SocialDistancingForPositiveMeasure,
     ComplianceForAllMeasure,
-    ComplianceForEssentialWorkers,
     Interval)
 from lib.data import collect_data_from_df
 from lib.plot import Plotter
@@ -33,7 +33,6 @@ import numpy as np
 import pandas as pd
 import sys
 import argparse
-
 if '..' not in sys.path:
     sys.path.append('..')
 
@@ -42,45 +41,54 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--sim_days', type=int, default=84, 
                         help="Integer number of days to run simulation. Default 12 weeks (84 days).")
-    parser.add_argument('--outfile', type=str, default='summaries_ST_essential', 
+    parser.add_argument('--outfile', type=str, default='summaries_SD_5', 
                         help="Name (without extension) for output pickle file")
     parser.add_argument('--num_workers',type=int, default=23, 
                         help="Number of parallel threads to run simultaneously, capped at (number of available CPUs - 1)")
     parser.add_argument('--random_repeats',type=int, default=40, 
                         help="Number of random realizations to run. Use at least 40 for stable results")
-    parser.add_argument('--beta',type=float, default=0.5, 
+    parser.add_argument('--beta',type=float, default=0.1, 
                         help="Site infectivity parameter for all site types") # TODO set different betas for each site type
-    parser.add_argument('--beta_household', type=float, default=0.4,
+    parser.add_argument('--beta_household', type=float, default=0.0,
                         help="Infectivity within a household")
-    parser.add_argument('--mob_settings', type=str, default='lib/mobility/Tubingen_settings_10.pk', 
-                        help="Path to mobility settings pickle file")
+    parser.add_argument('--worker_type',choices=['education','office','social','supermarket'],required=True,
+                        help="Which type of essential worker to include in model, at specified percentage of population")
+    parser.add_argument('--essential_pct',type=int,default=60,
+                       help="Proportion of total population to set to be essential workers of type --worker_type")
+    parser.add_argument('--downsample',type=int,default=100)
+#     parser.add_argument('--mob_settings', type=str, default='lib/mobility/San_Francisco_settings_100.pk', 
+#                         help="Path to mobility settings pickle file")
     parser.add_argument('--seed', type=int, default=0,
                         help="Set random seed for reproducibility")
-    parser.add_argument('--p_compliance', type=float, nargs='*', default=[0.0,.25,.5,.75,1.0],
-                        help="A list of values [0,1] representing either the proportion of the population who complies with contact tracing, or the proportion of the population that are essential workers, assuming all essential workers comply with contact tracing.")
-    parser.add_argument('--only_essential',action='store_true', default=False,
-                        help="Only run experiments for different proportions of essential workers, skip compliance levels for everyone")
     parser.add_argument('--area', type=str, default='SF')
     parser.add_argument('--country', type=str, default='US')
+    parser.add_argument('--p_compliances',type=float,nargs='*',default=[0.0,0.3,0.6])
     args = parser.parse_args()
     print(args)
+    
     
     random_repeats = args.random_repeats
     num_workers = min(args.num_workers,multiprocessing.cpu_count()-1)
     c = args.seed  # seed
     
     # mobility settings
-    from lib.settings.town_settings_tubingen import *
-    mob_settings = args.mob_settings
+    if args.area=='SF':
+        from lib.settings.town_settings_sanfrancisco import *
+        country='US'
+    else:
+        from lib.settings.town_settings_tubingen import *
+        country='GER'
+#     mob_settings = args.mob_settings
     area = args.area
-    country = args.country
+
+    mob_settings = f'lib/mobility/San_Francisco_settings_{args.downsample}_{args.worker_type}_{args.essential_pct}pct.pk'
     
     with open(mob_settings, 'rb') as fp:
         obj = pickle.load(fp)
     mob = MobilitySimulator(**obj)
     np.random.seed(c)
     runstr = f'run{c}_'
-    
+
 
     #### Get case data  ####
     days_future = args.sim_days
@@ -93,10 +101,10 @@ if __name__ == '__main__':
             (new_cases_ * mob.num_people_unscaled) /
             (mob.downsample * mob.region_population))
 
+    
     # instantiate correct distributions
     distributions = CovidDistributions(country=country)
     
-
     # Define initial seed count (based on infection counts on March 10)
     present_seeds = {
         'expo': 3,
@@ -110,12 +118,8 @@ if __name__ == '__main__':
     max_time_future = 24.0 * (days_future)
 
 
-
-
-
     #### Set epidemic parameters as inferred using Bayesian optimization ####
     # inferred parameters (see paper)
-#     beta = 1.1383
     beta = args.beta
     inferred_params = {
         'betas' : {
@@ -160,63 +164,48 @@ if __name__ == '__main__':
         return summary
 
 
-
     """
     ========================= END OF HEADER =========================
+
     """
-    
-    
-    ### 4.3.5. Effects  of compliance on the efficacy of isolation for smart  tracing strategies
+
+    # ### 4.3.5. Effects  of compliance on the efficacy of isolation for smart  tracing strategies
     daily_increase = new_cases.sum(axis=1)[1:] - new_cases.sum(axis=1)[:-1]
     testing_params_SD_6 = standard_testing(max_time_future, daily_increase)
-    testing_params_SD_6['test_smart_delta'] = 24.0 * 3    # time window considered for inspecting contacts
+    testing_params_SD_6['test_smart_delta'] = 24.0 * 3     # time window considered for inspecting contacts
     testing_params_SD_6['test_smart_action'] = 'isolate'
     testing_params_SD_6['test_targets'] = 'isym'
     testing_params_SD_6['test_smart_num_contacts'] = 25
+    testing_params_SD_6['smart_tracing'] = 'advanced'
     isolation_days_SD_6 = 7  # how many days selected people have to stay in isolation
+    duration_weeks_SD_6 = 12  # strategies tested for 12 weeks starting today
 
-    summaries_SD_6 = dict()
-
-    p_compliance = args.p_compliance    
-
-    for policy in ['basic']:
-        summaries_ = []
-        testing_params_SD_6['smart_tracing'] = policy
-
-        if args.only_essential is False:
-            for p in p_compliance:
-
-                m = [SocialDistancingForSmartTracing(
-                        t_window=Interval(*testing_params_SD_6['testing_t_window']),
-                        p_stay_home=1.0,
-                        test_smart_duration=24.0 * isolation_days_SD_6),
-                    ComplianceForAllMeasure(
-                        t_window=Interval(*testing_params_SD_6['testing_t_window']),
-                        p_compliance=p)
-                ]
-                res = run(testing_params_SD_6, m, max_time_future, present_seeds)
-                summaries_.append(res)
-
-                print('ComplianceForAll', p, ' done.')
-            summaries_SD_6[('all', p)] = summaries_
-
-        
-        for p in p_compliance:
-
-            mob.essential_workers = generate_sf_essential(p)
-            
-            m = [SocialDistancingForSmartTracing(
-                    t_window=Interval(*testing_params_SD_6['testing_t_window']),
-                    p_stay_home=1.0,
-                    test_smart_duration=24.0 * isolation_days_SD_6),
-                ComplianceForEssentialWorkers(
-                    t_window=Interval(*testing_params_SD_6['testing_t_window']),
-                    p_compliance=1.0)
+    summaries_ = dict()
+#     for ct_scheme in ['random','essential']:
+#         summaries_[ct_scheme] = []
+    for p in args.p_compliances:  
+        m = [SocialDistancingForSmartTracing(
+                t_window=Interval(*testing_params_SD_6['testing_t_window']),
+                p_stay_home=1.0,
+                test_smart_duration=24.0 * isolation_days_SD_6),
+             ComplianceForAllMeasure(
+                t_window=Interval(*testing_params_SD_6['testing_t_window']),
+                p_compliance=p)
             ]
-            res = run(testing_params_SD_6, m, max_time_future, present_seeds)
-            summaries_.append(res)
+        res = run(testing_params_SD_6, m, max_time_future, present_seeds)
+        summaries[('random',p)] = res
+        print(f'Completed random {p}')
 
-            print('ComplianceForEssentialWorkers', p, ' done.')
-        summaries_SD_6[('essential',p)] = summaries_
-        
-    save_summary(summaries_SD_6, f'{args.outfile}.pk') 
+        m = [SocialDistancingForSmartTracing(
+                t_window=Interval(*testing_params_SD_6['testing_t_window']),
+                p_stay_home=1.0,
+                test_smart_duration=24.0 * isolation_days_SD_6),
+             ComplianceForEssentialWorkers(
+                t_window=Interval(*testing_params_SD_6['testing_t_window']),
+                p_compliance=p)
+            ]
+        res = run(testing_params_SD_6, m, max_time_future, present_seeds)
+        summaries[('essential',p)] = res
+        print(f'Completed essential {p}')
+                       
+    save_summary(summaries_, f'{args.outfile}.pk')
