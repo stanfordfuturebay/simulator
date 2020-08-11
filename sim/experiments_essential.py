@@ -10,7 +10,7 @@ from lib.measures import (
     SocialDistancingByAgeMeasure,
     SocialDistancingForPositiveMeasure,
     ComplianceForAllMeasure,
-    ComplianceForEssentialWorkers
+    ComplianceForEssentialWorkers,
     Interval)
 from lib.data import collect_data_from_df
 from lib.plot import Plotter
