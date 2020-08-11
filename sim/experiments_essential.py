@@ -193,7 +193,7 @@ if __name__ == '__main__':
                 p_compliance=p)
             ]
         res = run(testing_params_SD_6, m, max_time_future, present_seeds)
-        summaries[('random',p)] = res
+        summaries_[('random',p)] = res
         print(f'Completed random {p}')
 
         m = [SocialDistancingForSmartTracing(
@@ -205,7 +205,7 @@ if __name__ == '__main__':
                 p_compliance=p)
             ]
         res = run(testing_params_SD_6, m, max_time_future, present_seeds)
-        summaries[('essential',p)] = res
+        summaries_[('essential',p)] = res
         print(f'Completed essential {p}')
                        
     save_summary(summaries_, f'{args.outfile}.pk')
