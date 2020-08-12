@@ -76,19 +76,19 @@ def _essential_mobility(wtype):
     # site types: ['education', 'office', 'social', 'supermarket']
     if wtype in ['education', 0]:
         essential_mob_rate_per_type = [5.0, 0.0, 3.6, 0.27]
-        essential_dur_mean_per_type = [5.0, 0.0, 0.64, 0.4]
+        essential_dur_mean_per_type = [5.0, 0.1, 0.64, 0.4]
         essential_variety_per_type = [1, 1, 10, 2]
     elif wtype in ['office',1]:
         essential_mob_rate_per_type = [0.0, 5.0, 3.6, 0.27]
-        essential_dur_mean_per_type = [0.0, 5.0, 0.64, 0.4]
+        essential_dur_mean_per_type = [0.1, 5.0, 0.64, 0.4]
         essential_variety_per_type = [1, 1, 10, 2]
     elif wtype in ['social',2]:
         essential_mob_rate_per_type = [0.0, 0.0, 5.0, 0.27]
-        essential_dur_mean_per_type = [0.0, 0.0, 5.0, 0.4]
+        essential_dur_mean_per_type = [0.1, 0.1, 5.0, 0.4]
         essential_variety_per_type = [1, 1, 10, 2]
     elif wtype in ['supermarket',3]:
-        essential_mob_rate_per_type = [0, 0, 3.6,  5]
-        essential_dur_mean_per_type = [0, 0, 0.64, 5]
+        essential_mob_rate_per_type = [0.0, 0.0, 3.6,  5.0]
+        essential_dur_mean_per_type = [0.1, 0.1, 0.64, 5.0]
         essential_variety_per_type = [1, 1, 10, 2]
     else:
         return None, None, None
