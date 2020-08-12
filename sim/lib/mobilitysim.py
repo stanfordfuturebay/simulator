@@ -6,6 +6,7 @@ import numpy as np
 import numba
 import pickle
 import json
+import pdb
 
 from interlap import InterLap
 
@@ -39,7 +40,7 @@ Contact = namedtuple('Contact', (
 # using pandas.Interval objects
 Interval = namedtuple('Interval', ('left', 'right'))
 
-@numba.njit
+# @numba.njit
 def _simulate_individual_synthetic_trace(indiv, num_sites, max_time, home_loc, site_loc,
                             site_type, mob_rate_per_type, dur_mean_per_type, delta):
     """Simulate a mobility trace for one synthetic individual on a 2D grid (jit for speed)"""
@@ -89,7 +90,7 @@ def _simulate_individual_synthetic_trace(indiv, num_sites, max_time, home_loc, s
 
     return data
 
-@numba.njit
+# @numba.njit
 def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_type, dur_mean_per_type,
                                variety_per_type, delta, site_dist):
     """Simulate a mobility trace for one real individual in a given town (jit for speed)"""
@@ -164,7 +165,7 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
 
     return data
 
-@numba.njit
+# @numba.njit
 def _simulate_synthetic_mobility_traces(*, num_people, num_sites, max_time, home_loc, site_loc,
                             site_type, people_age, mob_rate_per_age_per_type, dur_mean_per_type,
                             delta, seed):
@@ -192,10 +193,10 @@ def _simulate_synthetic_mobility_traces(*, num_people, num_sites, max_time, home
 
     return data, visit_counts
 
-@numba.njit
+# @numba.njit
 def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_age, mob_rate_per_age_per_type,
                             dur_mean_per_type, home_tile, tile_site_dist, variety_per_type, delta, seed,
-                            essential_workers, essential_mob_rate_per_age_per_type, essential_dur_mean_per_type, 
+                            essential_workers, essential_mob_rate_per_type, essential_dur_mean_per_type, 
                             essential_variety_per_type):
     rd.seed(seed)
     np.random.seed(seed-1)
@@ -208,7 +209,10 @@ def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_ag
         site_dist = tile_site_dist[home_tile[i]]
         
         if essential_workers[i] is True:
-            mob_rate_per_type = essential_mob_rate_per_age_per_type[people_age[i]]
+            print(mob_rate_per_type)
+            print(essential_mob_rate_per_type)
+            pdb.set_trace()
+            mob_rate_per_type = essential_mob_rate_per_type
             dur_mean_per_type = essential_dur_mean_per_type
             variety_per_type = essential_variety_per_type
         
@@ -432,7 +436,7 @@ class MobilitySimulator:
             # Init variables for essential workers
             # Note: any variables pertaining to essential workers is ignore if mode is 'synthetic'
             self.essential_workers = np.array([False for i in range(self.num_people)]) if essential_workers is None else np.array(essential_workers)
-            self.essential_mob_rate_per_age_per_type = self.mob_rate_per_age_per_type if essential_mob_rate_per_type is None else np.tile(essential_mob_rate_per_type,(self.num_age_groups,1))
+            self.essential_mob_rate_per_type = None if essential_mob_rate_per_type is None else np.array(essential_mob_rate_per_type)
             self.essential_dur_mean_per_type = self.dur_mean_per_type if essential_dur_mean_per_type is None else np.array(essential_dur_mean_per_type)
             self.essential_variety_per_type = self.variety_per_type if essential_variety_per_type is None else np.array(essential_variety_per_type)
 
@@ -536,7 +540,7 @@ class MobilitySimulator:
                 tile_site_dist=self.tile_site_dist,
                 seed=rd.randint(0, 2**32 - 1),
                 essential_workers=self.essential_workers,
-                essential_mob_rate_per_age_per_type=self.essential_mob_rate_per_age_per_type,
+                essential_mob_rate_per_type=self.essential_mob_rate_per_type,
                 essential_dur_mean_per_type=self.essential_dur_mean_per_type,
                 essential_variety_per_type=self.essential_variety_per_type)
 
