@@ -1138,10 +1138,13 @@ class DiseaseModel(object):
             # Check SocialDistancing measures
             is_j_contained = self.is_person_home_from_visit_due_to_measure(t=start_next_contact, i=j, visit_id=j_visit_id)  
             is_i_contained = self.is_person_home_from_visit_due_to_measure(t=start_next_contact, i=i, visit_id=i_visit_id)
+            '''Laura'''
+            contact.j_contained = is_j_contained
+            contact.i_contained = is_i_contained
+            '''end'''
                 
             # check hospitalization
-            is_i_contained = is_i_contained or (
-                self.state['hosp'][i] and self.state_started_at['hosp'][i] < start_next_contact)
+            is_i_contained = is_i_contained or (self.state['hosp'][i] and self.state_started_at['hosp'][i] < start_next_contact)
                     
             # BetaMultiplier measures
             site = contact.site
@@ -1164,7 +1167,6 @@ class DiseaseModel(object):
             if (not is_j_contained) and (not is_i_contained):
                 if self.smart_tracing == 'basic':
                     valid_contact = True
-                    break
                 elif self.smart_tracing == 'advanced':
                     s += (min(end_next_contact, t) - start_next_contact) \
                          * self.betas[self.site_dict[self.site_type[site]]] * beta_fact

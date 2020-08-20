@@ -27,7 +27,7 @@ from lib.mobilitysim import MobilitySimulator
 TO_HOURS = 24.0
 
 # Comment this in if you want to do map plots
-STORE_MOB = False
+STORE_MOB = True
 
 pp_legal_states = ['susc', 'expo', 'ipre', 'isym', 'iasy', 'posi', 'nega', 'resi', 'dead', 'hosp']
 
