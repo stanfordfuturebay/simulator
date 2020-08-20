@@ -1139,8 +1139,8 @@ class DiseaseModel(object):
             is_j_contained = self.is_person_home_from_visit_due_to_measure(t=start_next_contact, i=j, visit_id=j_visit_id)  
             is_i_contained = self.is_person_home_from_visit_due_to_measure(t=start_next_contact, i=i, visit_id=i_visit_id)
             '''Laura'''
-            contact.j_contained = is_j_contained
-            contact.i_contained = is_i_contained
+            contact.data['j_contained'] = is_j_contained
+            contact.data['i_contained'] = is_i_contained
             '''end'''
                 
             # check hospitalization
