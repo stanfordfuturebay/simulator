@@ -289,7 +289,7 @@ class DiseaseModel(object):
                 else:
                     raise ValueError('Invalid initial seed state.')
 
-    def launch_epidemic(self, params, initial_counts, testing_params, measure_list, verbose=True):
+    def launch_epidemic(self, params, initial_counts, testing_params, measure_list, sampled_contacts, verbose=True):
         """
         Run the epidemic, starting from initial event list.
         Events are treated in order in a priority queue. An event in the queue is a tuple
@@ -516,36 +516,71 @@ class DiseaseModel(object):
                         (self.state['resi'][infector] or 
                             self.state['dead'][infector])
 
-                    # 2) check whether infector stayed at home due to measures
+                    '''Zihan'''
+                    # 2) check whether infector got hospitalized
+                    infector_hospitalized = self.state['hosp'][infector]
+                    
+                    # 3) check whether infector stayed at home due to measures
                     #    or got hospitalized
-                    infector_contained = self.is_person_home_from_visit_due_to_measure(
-                        t=t, i=infector, visit_id=infector_visit_id) \
-                        or self.state['hosp'][infector]
+                    infector_contained, infector_measures_effective_list = self.is_person_home_from_visit_due_to_measure_detail(
+                        t=t, i=infector, visit_id=infector_visit_id)
                                             
-                    # 3) check whether susceptible stayed at home due to measures
-                    i_contained = self.is_person_home_from_visit_due_to_measure(
+                    # 4) check whether susceptible stayed at home due to measures
+                    i_contained, i_measures_effective_list = self.is_person_home_from_visit_due_to_measure_detail(
                         t=t, i=i, visit_id=i_visit_id)  
 
-                    # 4) check whether infectiousness got reduced due to site specific 
+                    # 5) check whether infectiousness got reduced due to site specific 
                     #    measures and as a consequence this event didn't occur
                     rejection_prob = self.reject_exposure_due_to_measure(t=t, k=k)
                     site_avoided_infection =  (np.random.uniform() < rejection_prob)
 
-                    # if none of 1), 2), 3), 4) are true, the event is valid
+                    # if none of 1), 2), 3), 4), 5) are true, the event is valid
                     if  (not infector_recovered) and \
+                        (not infector_hospitalized) and \
                         (not infector_contained) and \
                         (not i_contained) and \
                         (not site_avoided_infection):
 
                         self.__process_exposure_event(t, i, infector)
+                        contact.data['i_contained'] = False
+                        contact.data['j_contained'] = False
 
-                    # if any of 2), 3), 4) were true, an infection could happen 
+                    # if 1) or 2) is true, the event is not contained by any measure, but by status
+                    if infector_recovered:
+                        contact.data['i_contained'] = True
+                        contact.data['i_contained_by'].append('resi/dead')
+                        
+                    if infector_hospitalized:
+                        contact.data['i_contained'] = True
+                        contact.data['i_contained_by'].append('hosp')
+                        # an infection could happen at a later point, hence sample a new event 
+                        mu_infector = self.mu if self.state['iasy'][infector] else 1.0
+                        self.__push_contact_exposure_infector_to_j(
+                            t=t, infector=infector, j=i, base_rate=mu_infector)
+                    
+                    # if any of 3), 4), 5) were true, an infection could happen 
                     # at a later point, hence sample a new event 
                     if (infector_contained or i_contained or site_avoided_infection):
 
-                        mu_infector = self.mu if self.state['iasy'][infector] else 1.0
-                        self.__push_contact_exposure_infector_to_j(
-                            t=t, infector=infector, j=i, base_rate=mu_infector)                    
+                        if not infector_hospitalized: # avoid pushing future exposure repeatedly
+                            mu_infector = self.mu if self.state['iasy'][infector] else 1.0
+                            self.__push_contact_exposure_infector_to_j(
+                                t=t, infector=infector, j=i, base_rate=mu_infector)
+                        
+                        if infector_contained:
+                            contact.data['i_contained'] = True
+                            contact.data['i_contained_by'] += [i for i, x in enumerate(infector_measures_effective_list) if x == True]
+                        if i_contained:
+                            contact.data['j_contained'] = True
+                            contact.data['j_contained_by'] += [i for i, x in enumerate(i_measures_effective_list) if x == True]
+                        if site_avoided_infection:
+                            contact.data['i_contained'] = True
+                            contact.data['j_contained'] = True
+                            contact.data['i_contained_by'].append('site_measures')
+                            contact.data['j_contained_by'].append('site_measures')
+                    
+                    sampled_contacts.append(contact)
+                    '''Zihan'''
 
             elif event == 'ipre':
                 self.__process_presymptomatic_event(t, i)
@@ -963,6 +998,40 @@ class DiseaseModel(object):
                 j=i, j_visit_id=visit_id, t_pos_tests=self.t_pos_tests)
         )
         return is_home
+    
+    '''Zihan'''
+    def is_person_home_from_visit_due_to_measure_detail(self, t, i, visit_id):
+        '''
+        Returns True/False of whether person i stayed at home from visit
+        `visit_id` due to any measures
+        '''
+
+        measures_effective_list = [self.measure_list.is_contained(
+            SocialDistancingForAllMeasure, t=t,
+            j=i, j_visit_id=visit_id), 
+        self.measure_list.is_contained(
+            SocialDistancingForPositiveMeasure, t=t,
+            j=i, j_visit_id=visit_id, 
+            state_posi_started_at=self.state_started_at['posi'],
+            state_posi_ended_at=self.state_ended_at['posi'],
+            state_resi_started_at=self.state_started_at['resi'],
+            state_dead_started_at=self.state_started_at['dead']),
+        self.measure_list.is_contained(
+            SocialDistancingByAgeMeasure, t=t,
+            age=self.people_age[i], j_visit_id=visit_id),
+        self.measure_list.is_contained(
+            SocialDistancingForSmartTracing, t=t,
+            j=i, j_visit_id=visit_id), 
+        self.measure_list.is_contained(
+            SocialDistancingForKGroups, t=t,
+            j=i),
+        self.measure_list.is_contained(
+            UpperBoundCasesSocialDistancing, t=t,
+            j=i, j_visit_id=visit_id, t_pos_tests=self.t_pos_tests)]
+        
+        is_home = (True in measures_effective_list)
+        return is_home, measures_effective_list
+        '''Zihan'''
 
 
     def __apply_for_testing(self, t, i, s=0.0):
@@ -1139,8 +1208,8 @@ class DiseaseModel(object):
             is_j_contained = self.is_person_home_from_visit_due_to_measure(t=start_next_contact, i=j, visit_id=j_visit_id)  
             is_i_contained = self.is_person_home_from_visit_due_to_measure(t=start_next_contact, i=i, visit_id=i_visit_id)
             '''Laura'''
-            contact.data['j_contained'] = is_j_contained
-            contact.data['i_contained'] = is_i_contained
+            #contact.data['j_contained'] = is_j_contained
+            #contact.data['i_contained'] = is_i_contained
             '''end'''
                 
             # check hospitalization

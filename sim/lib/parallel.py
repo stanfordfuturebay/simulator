@@ -121,7 +121,6 @@ def create_ParallelSummary_from_DiseaseModel(sim):
     summary.children_count_isym[0, :] = sim.children_count_isym
     return summary
 
-
 def pp_launch(r, kwargs, distributions, params, initial_counts, testing_params, measure_list, max_time, dynamic_tracing):
 
     mob = MobilitySimulator(**kwargs)
@@ -129,11 +128,16 @@ def pp_launch(r, kwargs, distributions, params, initial_counts, testing_params, 
 
     sim = DiseaseModel(mob, distributions, dynamic_tracing=dynamic_tracing)
 
+    '''Zihan'''
+    sampled_contacts = []
+    '''Zihan'''
+    
     sim.launch_epidemic(
         params=params,
         initial_counts=initial_counts,
         testing_params=testing_params,
         measure_list=measure_list,
+        sampled_contacts=sampled_contacts,
         verbose=False)
 
     result = {
@@ -147,8 +151,9 @@ def pp_launch(r, kwargs, distributions, params, initial_counts, testing_params, 
         'children_count_isym': sim.children_count_isym,
         'essential_workers': sim.mob.essential_workers
     }
+            
     if STORE_MOB:
-        result['mob'] = sim.mob
+        result['mob'] = sampled_contacts
 
     return result
 
@@ -178,11 +183,11 @@ def launch_parallel_simulations(mob_settings, distributions, random_repeats, cpu
         res = ex.map(pp_launch, repeat_ids, mob_setting_list, distributions_list, params_list,
                      initial_seeds_list, testing_params_list, measure_list_list, max_time_list, dynamic_tracing_list)
 
-    # # DEBUG mode (to see errors printed properly)
+    # DEBUG mode (to see errors printed properly)
     # res = []
     # for r in repeat_ids:
-    #     res.append(pp_launch(r, mob_setting_list[r], distributions_list[r], params_list[r],
-    #                  initial_seeds_list[r], testing_params_list[r], measure_list_list[r], max_time_list[r], dynamic_tracing_list[r]))
+        # res.append(pp_launch(r, mob_setting_list[r], distributions_list[r], params_list[r],
+                     # initial_seeds_list[r], testing_params_list[r], measure_list_list[r], max_time_list[r], dynamic_tracing_list[r]))
 
     
     # collect all result (the fact that mob is still available here is due to the for loop)

@@ -7,7 +7,6 @@ import numba
 import pickle
 import json
 import pdb
-from dataclasses import dataclass
 
 from interlap import InterLap
 
@@ -689,8 +688,10 @@ class MobilitySimulator:
                                         id_tup=(v.id, v_inf.id),
                                         site=s,
                                         duration=c_t_to - c_t_from,
-                                        data={'i_contained':None,
-                                        'j_contained':None})
+                                        data={'i_contained':None,      # infector contained
+                                                  'j_contained':None,      # susceptible contained
+                                                  'i_contained_by':[], # measures or status containing i
+                                                  'j_contained_by':[]})  # measure or status containing j
 
                             # Add it to interlap
                             if for_all_individuals:
