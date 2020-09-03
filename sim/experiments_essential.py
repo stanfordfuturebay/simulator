@@ -8,6 +8,7 @@ from lib.measures import (
     SocialDistancingForKGroups,
     SocialDistancingByAgeMeasure,
     SocialDistancingForPositiveMeasure,
+    SocialDistancingForPositiveMeasureHousehold,
     ComplianceForAllMeasure,
     ComplianceForEssentialWorkers,
     Interval)
