@@ -1,4 +1,3 @@
-from lib.inference import *
 from lib.town_maps import MapIllustrator
 from lib.town_data import generate_population, generate_sites, compute_distances
 from lib.measures import (
@@ -9,13 +8,13 @@ from lib.measures import (
     SocialDistancingForKGroups,
     SocialDistancingByAgeMeasure,
     SocialDistancingForPositiveMeasure,
+    SocialDistancingForPositiveMeasureHousehold,
     ComplianceForAllMeasure,
     Interval)
 from lib.data import collect_data_from_df
 from lib.plot import Plotter
 from lib.distributions import CovidDistributions
 from lib.parallel import *
-from bayes_opt import BayesianOptimization
 from lib.dynamics import DiseaseModel
 from lib.mobilitysim import MobilitySimulator
 from lib.runutils import *
@@ -175,7 +174,7 @@ if __name__ == '__main__':
 
     summaries_SD_6 = dict()
 
-    p_compliance = [0.0, 0.5, 1.0]
+    p_compliance = [0.0, 1.0]
 
     for policy in ['advanced']:
         summaries_ = []

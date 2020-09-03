@@ -26,6 +26,28 @@ Visit = namedtuple('Visit', (
 
 # Tupe representing a contact from a individual i to another individual j
 # where individual i is at risk due to j
+
+# @dataclass
+# class Contact:
+#     t_from: int
+#     t_to: int
+#     indiv_i: int
+#     indiv_j: int
+#     site: int
+#     duration: int
+#     id_tup: int
+#     i_contained: bool
+#     j_contained: bool
+
+# Contact = recordclass('Contact',
+#     't_from t_to indiv_i indiv_j site duration id_tup i_contained j_contained')
+
+# Contact = namedtuple('Contact', (
+#     't_from',   # Time of beginning of contact
+#     't_to',     # Time of end of contact
+#     'data'  # Id of individual 'from' contact (uses interval (`t_from`, `t_to`) for matching)
+# ))
+
 Contact = namedtuple('Contact', (
     't_from',   # Time of beginning of contact
     't_to',     # Time of end of contact
@@ -33,8 +55,20 @@ Contact = namedtuple('Contact', (
     'indiv_j',  # Id of individual 'to' contact (may have already left, uses interval (`t_from`, `t_to_shifted`) for matching)
     'site',     # Id of site
     'duration', # Duration of contact (i.e. when i was at risk due to j)
-    'id_tup'    # tuple of `id`s of visits of `indiv_i` and `indiv_j`
+    'id_tup',    # tuple of `id`s of visits of `indiv_i` and `indiv_j`
+    'data'    # added by Laura, whether contact is valid or not
 ))
+
+# Contact = namedtuple('Contact', (
+#     't_from',   # Time of beginning of contact
+#     't_to',     # Time of end of contact
+#     'indiv_i',  # Id of individual 'from' contact (uses interval (`t_from`, `t_to`) for matching)
+#     'indiv_j',  # Id of individual 'to' contact (may have already left, uses interval (`t_from`, `t_to_shifted`) for matching)
+#     'site',     # Id of site
+#     'duration', # Duration of contact (i.e. when i was at risk due to j)
+#     'id_tup',    # tuple of `id`s of visits of `indiv_i` and `indiv_j`
+#     'status'    # added by Laura, whether contact is valid or not
+# ))
 
 # Tuple representing an interval for back-operability with previous version
 # using pandas.Interval objects
@@ -209,9 +243,6 @@ def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_ag
         site_dist = tile_site_dist[home_tile[i]]
         
         if essential_workers[i] is True:
-            print(mob_rate_per_type)
-            print(essential_mob_rate_per_type)
-            pdb.set_trace()
             mob_rate_per_type = essential_mob_rate_per_type
             dur_mean_per_type = essential_dur_mean_per_type
             variety_per_type = essential_variety_per_type
@@ -640,13 +671,27 @@ class MobilitySimulator:
                             # Note 2: Contact contains the delta-extended visit of `indiv_j`
                             # (i.e. there is a `Contact` even when `indiv_j` never overlapped physically with `indiv_i`)
                             # (i.e. need to adjust for that in dY_i integral)
+#                             c = Contact(t_from=c_t_from,
+#                                         t_to=c_t_to,
+#                                         indiv_i=v.indiv,
+#                                         indiv_j=v_inf.indiv,
+#                                         id_tup=(v.id, v_inf.id),
+#                                         site=s,
+#                                         duration=c_t_to - c_t_from,
+#                                         i_contained=None,
+#                                         j_contained=None)
+
                             c = Contact(t_from=c_t_from,
                                         t_to=c_t_to,
                                         indiv_i=v.indiv,
                                         indiv_j=v_inf.indiv,
                                         id_tup=(v.id, v_inf.id),
                                         site=s,
-                                        duration=c_t_to - c_t_from)
+                                        duration=c_t_to - c_t_from,
+                                        data={'i_contained':None,      # infector contained
+                                                  'j_contained':None,      # susceptible contained
+                                                  'i_contained_by':[], # measures or status containing i
+                                                  'j_contained_by':[]})  # measure or status containing j
 
                             # Add it to interlap
                             if for_all_individuals:

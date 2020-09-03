@@ -1,4 +1,3 @@
-from lib.inference import *
 from lib.town_maps import MapIllustrator
 from lib.town_data import generate_population, generate_sites, compute_distances
 from lib.measures import (
@@ -9,14 +8,15 @@ from lib.measures import (
     SocialDistancingForKGroups,
     SocialDistancingByAgeMeasure,
     SocialDistancingForPositiveMeasure,
+    SocialDistancingForPositiveMeasureHousehold,
     ComplianceForAllMeasure,
     ComplianceForEssentialWorkers,
+    SocialDistancingForNonEssential,
     Interval)
 from lib.data import collect_data_from_df
 from lib.plot import Plotter
 from lib.distributions import CovidDistributions
 from lib.parallel import *
-from bayes_opt import BayesianOptimization
 from lib.dynamics import DiseaseModel
 from lib.mobilitysim import MobilitySimulator
 from lib.runutils import *
@@ -63,7 +63,8 @@ if __name__ == '__main__':
                         help="Set random seed for reproducibility")
     parser.add_argument('--area', type=str, default='SF')
     parser.add_argument('--country', type=str, default='US')
-    parser.add_argument('--p_compliances',type=float,nargs='*',default=[0.0,0.3,0.6])
+    parser.add_argument('--p_compliances',type=float,nargs='*',default=[0.0,1.0])
+    parser.add_argument('--mob_settings',type=str, default=None)
     args = parser.parse_args()
     print(args)
     
@@ -82,7 +83,7 @@ if __name__ == '__main__':
 #     mob_settings = args.mob_settings
     area = args.area
 
-    mob_settings = f'lib/mobility/San_Francisco_settings_{args.downsample}_{args.worker_type}_{args.essential_pct}pct.pk'
+    mob_settings = f'lib/mobility/San_Francisco_settings_{args.downsample}_{args.worker_type}_{args.essential_pct}pct.pk' if not args.mob_settings else args.mob_settings
     
     with open(mob_settings, 'rb') as fp:
         obj = pickle.load(fp)
@@ -143,7 +144,10 @@ if __name__ == '__main__':
                 t_window=Interval(0.0, t), p_stay_home=1.0),
 
             SocialDistancingForPositiveMeasureHousehold(
-                t_window=Interval(0.0, t), p_isolate=1.0)
+                t_window=Interval(0.0, t), p_isolate=1.0),
+            
+            SocialDistancingForNonEssential(
+                t_window=Interval(0.0,t), p_stay_home=0.5)
         ]
         measure_list = MeasureList(measure_list)
 
@@ -182,8 +186,6 @@ if __name__ == '__main__':
     duration_weeks_SD_6 = 12  # strategies tested for 12 weeks starting today
 
     summaries_ = dict()
-#     for ct_scheme in ['random','essential']:
-#         summaries_[ct_scheme] = []
     for p in args.p_compliances:  
         m = [SocialDistancingForSmartTracing(
                 t_window=Interval(*testing_params_SD_6['testing_t_window']),

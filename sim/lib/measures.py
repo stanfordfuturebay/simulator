@@ -102,6 +102,63 @@ class SocialDistancingForAllMeasure(Measure):
         if self._in_window(t):
             return self.p_stay_home
         return 0.0
+    
+class SocialDistancingForNonEssential(Measure):
+    """
+    Social distancing measure. All the population is advised to stay home. Each
+    visit of each individual respects the measure with some probability.
+    """
+
+    def __init__(self, t_window, p_stay_home):
+        """
+
+        Parameters
+        ----------
+        t_window : Interval
+            Time window during which the measure is active
+        p_stay_home : float
+            Probability of respecting the measure, should be in [0,1]
+        """
+        # Init time window
+        super().__init__(t_window)
+
+        # Init probability of respecting measure
+        if (not isinstance(p_stay_home, float)) or (p_stay_home < 0):
+            raise ValueError("`p_stay_home` should be a non-negative float")
+        self.p_stay_home = p_stay_home
+
+    def init_run(self, n_people, n_visits, essential_workers):
+        """Init the measure for this run by sampling the outcome of each visit
+        for each individual 
+
+        Parameters
+        ----------
+        n_people : int
+            Number of people in the population
+        n_visits : int
+            Maximum number of visits of an individual
+        """
+        # Sample the outcome of the measure for each visit of each individual
+#         self.bernoulli_stay_home = np.random.binomial(
+#             1, self.p_stay_home, size=(n_people, n_visits))
+        self.bernoulli_compliant = np.array([[np.random.binomial(1, self.p_stay_home) if essential_workers[i]==True else 0 for j in range(n_visits)] for i in range(n_people)])
+        assert(self.bernoulli_compliant.shape == (n_people, n_visits))
+        self._is_init = True
+
+    @enforce_init_run
+    def is_contained(self, *, j, j_visit_id, t):
+        """Indicate if individual `j` respects measure for visit `j_visit_id`
+        """
+        is_home_now = self.bernoulli_stay_home[j, j_visit_id]
+        return is_home_now and self._in_window(t)
+    
+    @enforce_init_run
+    def is_contained_prob(self, *, j, t):
+        """Returns probability of containment for individual `j` at time `t`
+        """
+        if self._in_window(t):
+            return self.p_stay_home
+        return 0.0
 
 
 class UpperBoundCasesSocialDistancing(SocialDistancingForAllMeasure):
