@@ -1,4 +1,3 @@
-from lib.inference import *
 from lib.town_maps import MapIllustrator
 from lib.town_data import generate_population, generate_sites, compute_distances
 from lib.measures import (
@@ -16,7 +15,6 @@ from lib.data import collect_data_from_df
 from lib.plot import Plotter
 from lib.distributions import CovidDistributions
 from lib.parallel import *
-from bayes_opt import BayesianOptimization
 from lib.dynamics import DiseaseModel
 from lib.mobilitysim import MobilitySimulator
 from lib.runutils import *
