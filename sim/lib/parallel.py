@@ -19,7 +19,7 @@ from lib.priorityqueue import PriorityQueue
 from lib.measures import (MeasureList, BetaMultiplierMeasureBySite,
                       UpperBoundCasesBetaMultiplier, UpperBoundCasesSocialDistancing,
                       SocialDistancingForAllMeasure, BetaMultiplierMeasureByType,
-                      SocialDistancingForPositiveMeasure, SocialDistancingByAgeMeasure, SocialDistancingForSmartTracing, ComplianceForAllMeasure)
+                      SocialDistancingForPositiveMeasure, SocialDistancingByAgeMeasure, SocialDistancingForSmartTracing, ComplianceForAllMeasure, ComplianceForEssentialWorkers, SocialDistancingForNonEssential)
 
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from lib.mobilitysim import MobilitySimulator
@@ -150,8 +150,7 @@ def pp_launch(r, kwargs, distributions, params, initial_counts, testing_params, 
         'children_count_ipre': sim.children_count_ipre,
         'children_count_isym': sim.children_count_isym,
         'essential_workers': sim.mob.essential_workers
-    }
-            
+    }         
     if STORE_MOB:
         result['mob'] = sampled_contacts
 
@@ -213,6 +212,6 @@ def launch_parallel_simulations(mob_settings, distributions, random_repeats, cpu
         
         '''Laura Hack'''
         if result['essential_workers'] is not None:
-            summary.essential_workers[0, :] = result['essential_workers']
+            summary.essential_workers[r, :] = result['essential_workers']
             
     return summary

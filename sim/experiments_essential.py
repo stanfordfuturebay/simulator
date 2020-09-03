@@ -11,6 +11,7 @@ from lib.measures import (
     SocialDistancingForPositiveMeasureHousehold,
     ComplianceForAllMeasure,
     ComplianceForEssentialWorkers,
+    SocialDistancingForNonEssential,
     Interval)
 from lib.data import collect_data_from_df
 from lib.plot import Plotter
@@ -143,7 +144,10 @@ if __name__ == '__main__':
                 t_window=Interval(0.0, t), p_stay_home=1.0),
 
             SocialDistancingForPositiveMeasureHousehold(
-                t_window=Interval(0.0, t), p_isolate=1.0)
+                t_window=Interval(0.0, t), p_isolate=1.0),
+            
+            SocialDistancingForNonEssential(
+                t_window=Interval(0.0,t), p_stay_home=0.5)
         ]
         measure_list = MeasureList(measure_list)
 

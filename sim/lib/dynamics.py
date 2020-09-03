@@ -19,7 +19,7 @@ from lib.measures import (MeasureList, BetaMultiplierMeasureBySite,
     SocialDistancingForPositiveMeasureHousehold,
     SocialDistancingByAgeMeasure, SocialDistancingForSmartTracing,
     ComplianceForAllMeasure, SocialDistancingForKGroups,
-    ComplianceForEssentialWorkers)
+    ComplianceForEssentialWorkers, SocialDistancingForNonEssential)
 
 TO_HOURS = 24.0
 
@@ -366,6 +366,11 @@ class DiseaseModel(object):
         self.measure_list.init_run(SocialDistancingForKGroups)
         
         self.measure_list.init_run(ComplianceForEssentialWorkers,
+                                   essential_workers=self.mob.essential_workers)
+        
+        self.measure_list.init_run(SocialDistancingForNonEssential,
+                                   n_people=self.n_people,
+                                   n_visits=max(self.mob.visit_counts),
                                    essential_workers=self.mob.essential_workers)
 
         # init state variables with seeds
@@ -995,7 +1000,10 @@ class DiseaseModel(object):
                 j=i) or
             self.measure_list.is_contained(
                 UpperBoundCasesSocialDistancing, t=t,
-                j=i, j_visit_id=visit_id, t_pos_tests=self.t_pos_tests)
+                j=i, j_visit_id=visit_id, t_pos_tests=self.t_pos_tests) or
+            self.measure_list.is_contained(
+                SocialDistancingForNonEssential, t=t,
+                j=i, j_visit_id=visit_id)
         )
         return is_home
     
