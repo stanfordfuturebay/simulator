@@ -147,7 +147,7 @@ class SocialDistancingForNonEssential(Measure):
     def is_contained(self, *, j, j_visit_id, t):
         """Indicate if individual `j` respects measure for visit `j_visit_id`
         """
-        is_home_now = self.bernoulli_stay_home[j, j_visit_id]
+        is_home_now = self.bernoulli_stay_at_home[j, j_visit_id]
         return is_home_now and self._in_window(t)
     
     @enforce_init_run
