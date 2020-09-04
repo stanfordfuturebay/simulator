@@ -19,7 +19,7 @@ from lib.measures import (MeasureList, BetaMultiplierMeasureBySite,
     SocialDistancingForPositiveMeasureHousehold,
     SocialDistancingByAgeMeasure, SocialDistancingForSmartTracing,
     ComplianceForAllMeasure, SocialDistancingForKGroups,
-    ComplianceForEssentialWorkers, SocialDistancingForNonEssential)
+    ComplianceForEssentialWorkers, SocialDistancingForNonEssential, SocialDistancingForSmartTracingHousehold)
 
 TO_HOURS = 24.0
 
@@ -372,6 +372,8 @@ class DiseaseModel(object):
                                    n_people=self.n_people,
                                    n_visits=max(self.mob.visit_counts),
                                    essential_workers=self.mob.essential_workers)
+        
+        self.measure_list.init_run(SocialDistancingForSmartTracingHousehold)
 
         # init state variables with seeds
         self.__init_run()
@@ -1190,6 +1192,7 @@ class DiseaseModel(object):
             contact = contacts.pop()
             if self.test_smart_action == 'isolate':
                 self.measure_list.start_containment(SocialDistancingForSmartTracing, t=t, j=contact)
+                self.measure_list.start_containment(SocialDistancingForSmartTracingHousehold, t=t, j=contact)
             if self.test_smart_action == 'test':
                 self.__apply_for_testing(t, contact)
     

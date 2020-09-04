@@ -484,6 +484,47 @@ class SocialDistancingForSmartTracing(Measure):
                 return self.p_stay_home
         return 0.0
 
+class SocialDistancingForSmartTracingHousehold(Measure):
+    """
+    Social distancing measure. Isolate positive cases from household members. 
+    Each individual respects the measure with some probability.
+    """
+
+    def __init__(self, t_window, p_isolate, test_smart_duration):
+        """
+
+        Parameters
+        ----------
+        t_window : Interval
+            Time window during which the measure is active
+        p_isolate : float
+            Probability of respecting the measure, should be in [0,1]
+        """
+        # Init time window
+        super().__init__(t_window)
+        self.p_isolate = p_isolate
+        self.test_smart_duration = test_smart_duration
+        
+    def init_run(self):
+        """Init the measure for this run is trivial
+        """
+        self._is_init = True
+        
+    @enforce_init_run
+    def is_contained(self, *, j, t):
+        """Indicate if individual `j` respects measure 
+        """
+        is_isolated = np.random.binomial(1, self.p_isolate)
+        return is_isolated and self._in_window(t)
+
+    @enforce_init_run
+    def is_contained_prob(self, *, j, t, state_posi_started_at, state_posi_ended_at, state_resi_started_at, state_dead_started_at):
+        """Returns probability of containment for individual `j` at time `t`
+        """
+        if self._in_window(t):
+            return p_isolate
+        return 0.0
+    
 
 class SocialDistancingForKGroups(Measure):
     """
