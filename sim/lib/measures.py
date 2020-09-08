@@ -139,7 +139,7 @@ class SocialDistancingForNonEssential(Measure):
             Maximum number of visits of an individual
         """
         # Sample the outcome of the measure for each visit of each individual
-        self.bernoulli_stay_at_home = np.array([[np.random.binomial(1, self.p_stay_home) if essential_workers[i]==True else 0 for j in range(n_visits)] for i in range(n_people)])
+        self.bernoulli_stay_at_home = np.array([[np.random.binomial(1, self.p_stay_home) if essential_workers[i]==False else 0 for j in range(n_visits)] for i in range(n_people)])
         assert(self.bernoulli_stay_at_home.shape == (n_people, n_visits))
         self._is_init = True
 
