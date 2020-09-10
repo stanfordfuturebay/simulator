@@ -484,6 +484,59 @@ class SocialDistancingForSmartTracing(Measure):
                 return self.p_stay_home
         return 0.0
 
+class SocialDistancingForSmartTracingHousehold(Measure):
+    """
+    Social distancing measure. Isolate positive cases from household members. 
+    Each individual respects the measure with some probability.
+    """
+
+    def __init__(self, t_window, p_isolate, test_smart_duration):
+        """
+
+        Parameters
+        ----------
+        t_window : Interval
+            Time window during which the measure is active
+        p_isolate : float
+            Probability of respecting the measure, should be in [0,1]
+        """
+        # Init time window
+        super().__init__(t_window)
+        self.p_isolate = p_isolate
+        self.test_smart_duration = test_smart_duration
+        
+    def init_run(self, n_people):
+        """Each individual has a p_isolate chance of isolating from their household 
+        when told by SmartTracing
+        """
+        self.bernoulli_isolate = np.random.binomial(
+            1, self.p_isolate, size=(n_people))
+        self.intervals_isolate = [InterLap() for _ in range(n_people)]
+        self._is_init = True
+
+    @enforce_init_run
+    def is_contained(self, *, j, t):
+        """Indicate if individual `j` respects measure for visit `j_visit_id`
+        """
+        if self._in_window(t) and self.bernoulli_isolate[j]:
+            for interval in self.intervals_isolate[j].find((t, t)):
+                return True
+        return False
+
+    @enforce_init_run
+    def start_containment(self, *, j, t):
+        self.intervals_isolate[j].update([(t, t + self.test_smart_duration)])
+        return
+    
+    @enforce_init_run
+    def is_contained_prob(self, *, j, t):
+        """Returns probability of containment for individual `j` at time `t`
+        """
+        if self._in_window(t):
+            for interval in self.intervals_isolate[j].find((t, t)):
+                return self.p_isolate
+        return 0.0    
+    
 
 class SocialDistancingForKGroups(Measure):
     """

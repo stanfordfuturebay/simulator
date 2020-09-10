@@ -12,6 +12,7 @@ from lib.measures import (
     ComplianceForAllMeasure,
     ComplianceForEssentialWorkers,
     SocialDistancingForNonEssential,
+    SocialDistancingForSmartTracingHousehold,
     Interval)
 from lib.data import collect_data_from_df
 from lib.plot import Plotter

@@ -19,7 +19,7 @@ from lib.measures import (MeasureList, BetaMultiplierMeasureBySite,
     SocialDistancingForPositiveMeasureHousehold,
     SocialDistancingByAgeMeasure, SocialDistancingForSmartTracing,
     ComplianceForAllMeasure, SocialDistancingForKGroups,
-    ComplianceForEssentialWorkers, SocialDistancingForNonEssential)
+    ComplianceForEssentialWorkers, SocialDistancingForNonEssential, SocialDistancingForSmartTracingHousehold)
 
 TO_HOURS = 24.0
 
@@ -372,6 +372,9 @@ class DiseaseModel(object):
                                    n_people=self.n_people,
                                    n_visits=max(self.mob.visit_counts),
                                    essential_workers=self.mob.essential_workers)
+        
+        self.measure_list.init_run(SocialDistancingForSmartTracingHousehold,
+                                  n_people=self.n_people)
 
         # init state variables with seeds
         self.__init_run()
@@ -486,13 +489,14 @@ class DiseaseModel(object):
                     away_from_home = (infector_away_from_home or i_away_from_home)
                     
                     # 4) check whether infector is isolated from household members
-                    infector_isolated = self.measure_list.is_contained(
-                        SocialDistancingForPositiveMeasureHousehold, t=t,
-                        j=infector, 
-                        state_posi_started_at=self.state_started_at['posi'], 
-                        state_posi_ended_at=self.state_ended_at['posi'], 
-                        state_resi_started_at=self.state_started_at['resi'], 
-                        state_dead_started_at=self.state_started_at['dead'])             
+                    infector_isolated = (self.measure_list.is_contained(
+                            SocialDistancingForPositiveMeasureHousehold, t=t,
+                            j=infector, 
+                            state_posi_started_at=self.state_started_at['posi'], 
+                            state_posi_ended_at=self.state_ended_at['posi'], 
+                            state_resi_started_at=self.state_started_at['resi'], 
+                            state_dead_started_at=self.state_started_at['dead']) or 
+                        self.measure_list.is_contained(SocialDistancingForSmartTracingHousehold, t=t, j=infector))             
 
                     # if none of 1), 2), 3), 4) are true, the event is valid
                     if  (not infector_recovered) and \
@@ -1190,8 +1194,12 @@ class DiseaseModel(object):
             contact = contacts.pop()
             if self.test_smart_action == 'isolate':
                 self.measure_list.start_containment(SocialDistancingForSmartTracing, t=t, j=contact)
+                self.measure_list.start_containment(SocialDistancingForSmartTracingHousehold, t=t, j=contact)
             if self.test_smart_action == 'test':
                 self.__apply_for_testing(t, contact)
+                # TODO: does this go here? Will isolate j from household for test_smart_duration, even if j has 
+                # received a negative test result
+                self.measure_list.start_containment(SocialDistancingForSmartTracingHousehold, t=t, j=contact)
     
     # compute empirical survival probability of individual j due to node i at time t
     def __compute_empirical_survival_probability(self, t, i, j):
