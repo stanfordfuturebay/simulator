@@ -505,25 +505,37 @@ class SocialDistancingForSmartTracingHousehold(Measure):
         self.p_isolate = p_isolate
         self.test_smart_duration = test_smart_duration
         
-    def init_run(self):
-        """Init the measure for this run is trivial
+    def init_run(self, n_people):
+        """Each individual has a p_isolate chance of isolating from their household 
+        when told by SmartTracing
         """
+        self.bernoulli_isolate = np.random.binomial(
+            1, self.p_isolate, size=(n_people))
+        self.intervals_isolate = [InterLap() for _ in range(n_people)]
         self._is_init = True
-        
-    @enforce_init_run
-    def is_contained(self, *, j, t):
-        """Indicate if individual `j` respects measure 
-        """
-        is_isolated = np.random.binomial(1, self.p_isolate)
-        return is_isolated and self._in_window(t)
 
     @enforce_init_run
-    def is_contained_prob(self, *, j, t, state_posi_started_at, state_posi_ended_at, state_resi_started_at, state_dead_started_at):
+    def is_contained(self, *, j, t):
+        """Indicate if individual `j` respects measure for visit `j_visit_id`
+        """
+        if self._in_window(t) and self.bernoulli_isolate[j]:
+            for interval in self.intervals_isolate[j].find((t, t)):
+                return True
+        return False
+
+    @enforce_init_run
+    def start_containment(self, *, j, t):
+        self.intervals_isolate[j].update([(t, t + self.test_smart_duration)])
+        return
+    
+    @enforce_init_run
+    def is_contained_prob(self, *, j, t):
         """Returns probability of containment for individual `j` at time `t`
         """
         if self._in_window(t):
-            return p_isolate
-        return 0.0
+            for interval in self.intervals_isolate[j].find((t, t)):
+                return self.p_isolate
+        return 0.0    
     
 
 class SocialDistancingForKGroups(Measure):
