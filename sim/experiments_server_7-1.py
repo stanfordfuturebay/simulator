@@ -186,6 +186,10 @@ if __name__ == '__main__':
                 t_window=Interval(*testing_params_SD_6['testing_t_window']),
                 p_stay_home=1.0,
                 test_smart_duration=24.0 * isolation_days_SD_6),
+                SocialDistancingForSmartTracingHousehold(
+                t_window=Interval(*testing_params_SD_6['testing_t_window']),
+                p_isolate=1.0,
+                test_smart_duration=24.0 * isolation_days_SD_6),
                 ComplianceForAllMeasure(
                 t_window=Interval(*testing_params_SD_6['testing_t_window']),
                 p_compliance=p)

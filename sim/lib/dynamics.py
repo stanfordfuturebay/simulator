@@ -180,6 +180,10 @@ class DiseaseModel(object):
         
         # smart tracing
         self.empirical_survival_probability = np.ones(self.n_people, dtype='float')
+        
+        # Zihan:
+        self.num_expo_house = 0
+        self.num_expo_contact = 0
 
     def initialize_states_for_seeds(self):
         """
@@ -496,18 +500,23 @@ class DiseaseModel(object):
                             state_posi_ended_at=self.state_ended_at['posi'], 
                             state_resi_started_at=self.state_started_at['resi'], 
                             state_dead_started_at=self.state_started_at['dead']) or 
-                        self.measure_list.is_contained(SocialDistancingForSmartTracingHousehold, t=t, j=infector))             
+                        self.measure_list.is_contained(SocialDistancingForSmartTracingHousehold, t=t, j=infector))
 
-                    # if none of 1), 2), 3), 4) are true, the event is valid
+                    # 5) check whether i is isolated due to contact tracing
+                    i_isolated = self.measure_list.is_contained(SocialDistancingForSmartTracingHousehold, t=t, j=i)
+
+                    # if none of 1), 2), 3), 4), 5)are true, the event is valid
                     if  (not infector_recovered) and \
                         (not infector_hospitalized) and \
                         (not away_from_home) and \
-                        (not infector_isolated):
+                        (not infector_isolated) and \
+                        (not i_isolated):
 
                         self.__process_exposure_event(t, i, infector)
+                        self.num_expo_house += 1
 
-                    # if 2) or 3) were true, a household infection could happen at a later point, hence sample a new event
-                    if (infector_hospitalized or away_from_home):
+                    # if 2) or 3) or 4) or 5) were true, a household infection could happen at a later point, hence sample a new event
+                    if (infector_hospitalized or away_from_home or infector_isolated or i_isolated):
 
                         mu_infector = self.mu if self.state['iasy'][infector] else 1.0
                         self.__push_household_exposure_infector_to_j(
@@ -553,6 +562,7 @@ class DiseaseModel(object):
                         self.__process_exposure_event(t, i, infector)
                         contact.data['i_contained'] = False
                         contact.data['j_contained'] = False
+                        self.num_expo_contact += 1
 
                     # if 1) or 2) is true, the event is not contained by any measure, but by status
                     if infector_recovered:
@@ -587,6 +597,17 @@ class DiseaseModel(object):
                             contact.data['j_contained'] = True
                             contact.data['i_contained_by'].append('site_measures')
                             contact.data['j_contained_by'].append('site_measures')
+                    
+                    if infector_contained:
+                        if self.state['iasy'][infector] or self.state['isym'][infector] or self.state['ipre'][infector] or self.state['posi'][infector]:
+                            contact.data['i_contained_infectious'] = True
+                        else:
+                            contact.data['i_contained_infectious'] = False
+                    if i_contained:
+                        if self.state['iasy'][i] or self.state['isym'][i] or self.state['ipre'][i] or self.state['posi'][i]:
+                            contact.data['j_contained_infectious'] = True
+                        else:
+                            contact.data['j_contained_infectious'] = False
                     
                     sampled_contacts.append(contact)
                     '''Zihan'''
@@ -1199,7 +1220,7 @@ class DiseaseModel(object):
                 self.__apply_for_testing(t, contact)
                 # TODO: does this go here? Will isolate j from household for test_smart_duration, even if j has 
                 # received a negative test result
-                self.measure_list.start_containment(SocialDistancingForSmartTracingHousehold, t=t, j=contact)
+                #self.measure_list.start_containment(SocialDistancingForSmartTracingHousehold, t=t, j=contact)
     
     # compute empirical survival probability of individual j due to node i at time t
     def __compute_empirical_survival_probability(self, t, i, j):

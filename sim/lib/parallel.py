@@ -19,7 +19,10 @@ from lib.priorityqueue import PriorityQueue
 from lib.measures import (MeasureList, BetaMultiplierMeasureBySite,
                       UpperBoundCasesBetaMultiplier, UpperBoundCasesSocialDistancing,
                       SocialDistancingForAllMeasure, BetaMultiplierMeasureByType,
-                      SocialDistancingForPositiveMeasure, SocialDistancingByAgeMeasure, SocialDistancingForSmartTracing, ComplianceForAllMeasure, ComplianceForEssentialWorkers, SocialDistancingForNonEssential)
+                      SocialDistancingForPositiveMeasure, SocialDistancingByAgeMeasure,
+                      SocialDistancingForSmartTracing, ComplianceForAllMeasure,
+                      ComplianceForEssentialWorkers, SocialDistancingForNonEssential,
+                      SocialDistancingForSmartTracingHousehold)
 
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from lib.mobilitysim import MobilitySimulator
@@ -87,6 +90,8 @@ class ParallelSummary(object):
         
         self.measure_list = []
         self.mob = []
+        self.num_expo_contact = []
+        self.num_expo_house = []
         
         self.people_age = np.zeros((repeats, n_people), dtype='int')
         self.essential_workers = np.zeros((repeats, n_people), dtype='int')
@@ -149,7 +154,9 @@ def pp_launch(r, kwargs, distributions, params, initial_counts, testing_params, 
         'children_count_iasy': sim.children_count_iasy,
         'children_count_ipre': sim.children_count_ipre,
         'children_count_isym': sim.children_count_isym,
-        'essential_workers': sim.mob.essential_workers
+        'essential_workers': sim.mob.essential_workers,
+        'num_expo_house': sim.num_expo_house,
+        'num_expo_contact': sim.num_expo_contact
     }         
     if STORE_MOB:
         result['mob'] = sampled_contacts
@@ -200,6 +207,9 @@ def launch_parallel_simulations(mob_settings, distributions, random_repeats, cpu
             summary.state_ended_at[code][r, :] = result['state_ended_at'][code]
         
         summary.measure_list.append(result['measure_list'])
+        
+        summary.num_expo_house.append(result['num_expo_house'])
+        summary.num_expo_contact.append(result['num_expo_contact'])
 
         if STORE_MOB:
             summary.mob.append(result['mob']) 

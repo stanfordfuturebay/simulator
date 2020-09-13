@@ -691,7 +691,9 @@ class MobilitySimulator:
                                         data={'i_contained':None,      # infector contained
                                                   'j_contained':None,      # susceptible contained
                                                   'i_contained_by':[], # measures or status containing i
-                                                  'j_contained_by':[]})  # measure or status containing j
+                                                  'j_contained_by':[], # measure or status containing j
+                                                  'i_contained_infectious':None,
+                                                  'j_contained_infectious':None}) 
 
                             # Add it to interlap
                             if for_all_individuals:
