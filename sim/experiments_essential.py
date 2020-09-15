@@ -64,7 +64,7 @@ if __name__ == '__main__':
                         help="Set random seed for reproducibility")
     parser.add_argument('--area', type=str, default='SF')
     parser.add_argument('--country', type=str, default='US')
-    parser.add_argument('--p_compliances',type=float,nargs='*',default=[0.0,1.0])
+    parser.add_argument('--p_compliances',type=float,nargs='*',default=[0.0,0.5])
     parser.add_argument('--mob_settings',type=str, default=None)
     args = parser.parse_args()
     print(args)
