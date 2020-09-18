@@ -53,9 +53,9 @@ if __name__ == '__main__':
                         help="Site infectivity parameter for all site types") # TODO set different betas for each site type
     parser.add_argument('--beta_household', type=float, default=0.0,
                         help="Infectivity within a household")
-    parser.add_argument('--worker_type',choices=['education','office','social','supermarket'],required=True,
+    parser.add_argument('--worker_type',choices=['education','office','social','supermarket','multi'],required=True,
                         help="Which type of essential worker to include in model, at specified percentage of population")
-    parser.add_argument('--essential_pct',type=int,default=60,
+    parser.add_argument('--essential_pct',type=int,default=50,
                        help="Proportion of total population to set to be essential workers of type --worker_type")
     parser.add_argument('--downsample',type=int,default=100)
 #     parser.add_argument('--mob_settings', type=str, default='lib/mobility/San_Francisco_settings_100.pk', 
@@ -64,7 +64,6 @@ if __name__ == '__main__':
                         help="Set random seed for reproducibility")
     parser.add_argument('--area', type=str, default='SF')
     parser.add_argument('--country', type=str, default='US')
-    parser.add_argument('--p_compliances',type=float,nargs='*',default=[0.0,0.5])
     parser.add_argument('--mob_settings',type=str, default=None)
     args = parser.parse_args()
     print(args)
