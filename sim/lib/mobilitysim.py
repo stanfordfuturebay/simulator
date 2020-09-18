@@ -126,7 +126,7 @@ def _simulate_individual_synthetic_trace(indiv, num_sites, max_time, home_loc, s
 
 # @numba.njit
 def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_type, dur_mean_per_type,
-                               variety_per_type, delta, site_dist):
+                               variety_per_type, delta, site_dist, essential_work_site, worker_type):
     """Simulate a mobility trace for one real individual in a given town (jit for speed)"""
     # Holds tuples of (time_start, time_end, indiv, site, duration)
     data = list()
@@ -143,25 +143,28 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
     usual_sites=[]
     for k in range(len(mob_rate_per_type)):
         usual_sites_k=[]
-        # All sites of type k
-        s_args = np.where(site_type == k)[0]
+        if worker_type==k:
+            usual_sites_k.append(essential_work_site)
+        else:
+            # All sites of type k
+            s_args = np.where(site_type == k)[0]
 
-        # Number of discrete sites to choose from type k
-        variety_k = variety_per_type[k]
-        # Probability of sites of type k
-        site_prob = site_prox[s_args] / site_prox[s_args].sum()
-        done = 0
-        while (done < variety_k and len(s_args) > done):
-            # s_idx = np.random.choice(site_prob.shape[0], p=site_prob)
-            # s_idx = np.random.multinomial(1, pvals=site_prob).argmax()
+            # Number of discrete sites to choose from type k
+            variety_k = variety_per_type[k]
+            # Probability of sites of type k
+            site_prob = site_prox[s_args] / site_prox[s_args].sum()
+            done = 0
+            while (done < variety_k and len(s_args) > done):
+                # s_idx = np.random.choice(site_prob.shape[0], p=site_prob)
+                # s_idx = np.random.multinomial(1, pvals=site_prob).argmax()
 
-            # numba-stable/compatible way of np.random.choice (otherwise crashes)
-            s_idx = np.searchsorted(np.cumsum(site_prob), np.random.random(), side="right")
-            site = s_args[s_idx]
-            # Don't pick the same site twice
-            if site not in usual_sites_k:
-                usual_sites_k.append(site)
-                done+=1
+                # numba-stable/compatible way of np.random.choice (otherwise crashes)
+                s_idx = np.searchsorted(np.cumsum(site_prob), np.random.random(), side="right")
+                site = s_args[s_idx]
+                # Don't pick the same site twice
+                if site not in usual_sites_k:
+                    usual_sites_k.append(site)
+                    done+=1
 
         usual_sites.append(usual_sites_k)
 
@@ -211,6 +214,7 @@ def _simulate_synthetic_mobility_traces(*, num_people, num_sites, max_time, home
 
         # use mobility rates of specific age group
         mob_rate_per_type = mob_rate_per_age_per_type[people_age[i]]
+        
         data_i = _simulate_individual_synthetic_trace(
             indiv=i,
             num_sites=num_sites,
@@ -231,7 +235,7 @@ def _simulate_synthetic_mobility_traces(*, num_people, num_sites, max_time, home
 def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_age, mob_rate_per_age_per_type,
                             dur_mean_per_type, home_tile, tile_site_dist, variety_per_type, delta, seed,
                             essential_workers, essential_mob_rate_per_type, essential_dur_mean_per_type, 
-                            essential_variety_per_type):
+                            essential_work_sites,essential_type):
     rd.seed(seed)
     np.random.seed(seed-1)
     data, visit_counts = list(), list()
@@ -245,8 +249,9 @@ def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_ag
         if essential_workers[i] is True:
             mob_rate_per_type = essential_mob_rate_per_type
             dur_mean_per_type = essential_dur_mean_per_type
-            variety_per_type = essential_variety_per_type
         
+        ## temp until merge laura/worker_types
+        worker_type = essential_type if (essential_workers[i]==True) else -1
         data_i = _simulate_individual_real_trace(
             indiv=i,
             max_time=max_time,
@@ -255,7 +260,10 @@ def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_ag
             dur_mean_per_type=dur_mean_per_type,
             delta=delta,
             variety_per_type=variety_per_type,
-            site_dist=site_dist)
+            site_dist=site_dist,
+            essential_work_site=essential_work_sites[i],
+            worker_type=worker_type
+        )
 
         data.extend(data_i)
         visit_counts.append(len(data_i))
@@ -314,7 +322,7 @@ class MobilitySimulator:
                 tile_site_dist=None, variety_per_type=None, people_household=None, downsample=None,
                 num_people=None, num_people_unscaled=None, num_sites=None, mob_rate_per_type=None,
                 dur_mean=None, num_age_groups=None, seed=None, verbose=False, essential_workers=None,
-                essential_mob_rate_per_type=None, essential_dur_mean_per_type=None, essential_variety_per_type=None):
+                essential_mob_rate_per_type=None, essential_dur_mean_per_type=None, essential_work_sites=None, essential_type=None):
         """
         delta : float
             Time delta to extend contacts
@@ -421,8 +429,6 @@ class MobilitySimulator:
             self.home_tile=None
             self.tile_site_dist=None
             
-            '''Laura Change'''
-            self.essential_workers = np.array([False for i in range(self.num_people)]) if essential_workers is None else np.array(essential_workers)
         elif real:
 
             self.mode = 'real'
@@ -469,7 +475,8 @@ class MobilitySimulator:
             self.essential_workers = np.array([False for i in range(self.num_people)]) if essential_workers is None else np.array(essential_workers)
             self.essential_mob_rate_per_type = None if essential_mob_rate_per_type is None else np.array(essential_mob_rate_per_type)
             self.essential_dur_mean_per_type = self.dur_mean_per_type if essential_dur_mean_per_type is None else np.array(essential_dur_mean_per_type)
-            self.essential_variety_per_type = self.variety_per_type if essential_variety_per_type is None else np.array(essential_variety_per_type)
+            self.essential_work_sites = np.array(essential_work_sites)
+            self.essential_type = essential_type
 
 
             self.home_tile=np.array(home_tile)
@@ -573,7 +580,9 @@ class MobilitySimulator:
                 essential_workers=self.essential_workers,
                 essential_mob_rate_per_type=self.essential_mob_rate_per_type,
                 essential_dur_mean_per_type=self.essential_dur_mean_per_type,
-                essential_variety_per_type=self.essential_variety_per_type)
+                essential_work_sites=self.essential_work_sites,
+                essential_type=self.essential_type
+            )
 
         # Group mobility traces per indiv 
         self.mob_traces = self._group_mob_traces(all_mob_traces)

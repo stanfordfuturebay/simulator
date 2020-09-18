@@ -35,7 +35,7 @@ tile_level_dict = {
 }
 
 def generate_population(bbox, population_per_age_group, density_file=None, tile_level=16, seed=None,
-                        density_site_loc=None, household_info=None, essential_prop_per_age_group=None):
+                        density_site_loc=None, household_info=None, essential_prop_per_age_group=None, site_type=None, essential_type=None):
     
     # raise error if tile level is invalid
     assert (type(tile_level)==int and tile_level>=0 and tile_level<=20), 'Invalid tile level'
@@ -142,6 +142,9 @@ def generate_population(bbox, population_per_age_group, density_file=None, tile_
     tile_loc=[]
     i_tile=0
     essential_workers=[]
+    essential_work_sites=[]
+    essential_site_idxs = [i for i in range(len(site_type)) if site_type[i]==essential_type]
+    
     for _, t in tiles.iterrows():
         lat=t['lat']
         lon=t['lon']
@@ -159,9 +162,12 @@ def generate_population(bbox, population_per_age_group, density_file=None, tile_
         people_age+=new_people_ages
         i_tile+=1
         if essential_prop_per_age_group is not None:
-            essential_workers+=[(np.random.rand()<essential_prop_per_age_group[new_people_ages[i]]) for i in range(len(new_people_ages))]
+            new_essential_workers =[(np.random.rand()<essential_prop_per_age_group[new_people_ages[i]]) for i in range(len(new_people_ages))]
+            essential_workers += new_essential_workers
+            essential_work_sites += [np.random.choice(essential_site_idxs) if (new_essential_workers[i]==True) else -1 for i in range(len(new_people_ages))]
         else:
             essential_workers+=[False for i in range(len(new_people_ages))]
+            essential_work_sites = None
 
     if household_info is not None:
         # pick a societal role for each person depending on the age group
@@ -261,7 +267,7 @@ def generate_population(bbox, population_per_age_group, density_file=None, tile_
         # set all people as independent 1-person families
         people_household = np.array([i for i in range(len(home_loc))])
 
-    return home_loc, people_age, home_tile, tile_loc, people_household, essential_workers
+    return home_loc, people_age, home_tile, tile_loc, people_household, essential_workers, essential_work_sites
 
 def overpass_query(bbox, contents):
     overpass_bbox = str((bbox[0],bbox[2],bbox[1],bbox[3]))
