@@ -6,6 +6,7 @@ import numpy as np
 import numba
 import pickle
 import json
+import pdb
 
 from interlap import InterLap
 
@@ -25,6 +26,28 @@ Visit = namedtuple('Visit', (
 
 # Tupe representing a contact from a individual i to another individual j
 # where individual i is at risk due to j
+
+# @dataclass
+# class Contact:
+#     t_from: int
+#     t_to: int
+#     indiv_i: int
+#     indiv_j: int
+#     site: int
+#     duration: int
+#     id_tup: int
+#     i_contained: bool
+#     j_contained: bool
+
+# Contact = recordclass('Contact',
+#     't_from t_to indiv_i indiv_j site duration id_tup i_contained j_contained')
+
+# Contact = namedtuple('Contact', (
+#     't_from',   # Time of beginning of contact
+#     't_to',     # Time of end of contact
+#     'data'  # Id of individual 'from' contact (uses interval (`t_from`, `t_to`) for matching)
+# ))
+
 Contact = namedtuple('Contact', (
     't_from',   # Time of beginning of contact
     't_to',     # Time of end of contact
@@ -32,16 +55,28 @@ Contact = namedtuple('Contact', (
     'indiv_j',  # Id of individual 'to' contact (may have already left, uses interval (`t_from`, `t_to_shifted`) for matching)
     'site',     # Id of site
     'duration', # Duration of contact (i.e. when i was at risk due to j)
-    'id_tup'    # tuple of `id`s of visits of `indiv_i` and `indiv_j`
+    'id_tup',    # tuple of `id`s of visits of `indiv_i` and `indiv_j`
+    'data'    # added by Laura, whether contact is valid or not
 ))
+
+# Contact = namedtuple('Contact', (
+#     't_from',   # Time of beginning of contact
+#     't_to',     # Time of end of contact
+#     'indiv_i',  # Id of individual 'from' contact (uses interval (`t_from`, `t_to`) for matching)
+#     'indiv_j',  # Id of individual 'to' contact (may have already left, uses interval (`t_from`, `t_to_shifted`) for matching)
+#     'site',     # Id of site
+#     'duration', # Duration of contact (i.e. when i was at risk due to j)
+#     'id_tup',    # tuple of `id`s of visits of `indiv_i` and `indiv_j`
+#     'status'    # added by Laura, whether contact is valid or not
+# ))
 
 # Tuple representing an interval for back-operability with previous version
 # using pandas.Interval objects
 Interval = namedtuple('Interval', ('left', 'right'))
 
-@numba.njit
+# @numba.njit
 def _simulate_individual_synthetic_trace(indiv, num_sites, max_time, home_loc, site_loc,
-                            site_type, mob_rate_per_type, dur_mean_per_type, delta):
+                            site_type, mob_rate_per_type, dur_mean_per_type,  essential_work_site,essential_workers,essential_type,delta):
     """Simulate a mobility trace for one synthetic individual on a 2D grid (jit for speed)"""
     # Holds tuples of (time_start, time_end, indiv, site, duration)
     data = list()
@@ -89,9 +124,9 @@ def _simulate_individual_synthetic_trace(indiv, num_sites, max_time, home_loc, s
 
     return data
 
-@numba.njit
+# @numba.njit
 def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_type, dur_mean_per_type,
-                               variety_per_type, delta, site_dist):
+                               variety_per_type, essential_work_site,essential_workers,essential_type, delta, site_dist):
     """Simulate a mobility trace for one real individual in a given town (jit for speed)"""
     # Holds tuples of (time_start, time_end, indiv, site, duration)
     data = list()
@@ -108,25 +143,28 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
     usual_sites=[]
     for k in range(len(mob_rate_per_type)):
         usual_sites_k=[]
-        # All sites of type k
-        s_args = np.where(site_type == k)[0]
+        if (essential_workers) and (k == essential_type):
+            usual_sites_k.append(essential_work_site)
+        else:
+            # All sites of type k
+            s_args = np.where(site_type == k)[0]
 
-        # Number of discrete sites to choose from type k
-        variety_k = variety_per_type[k]
-        # Probability of sites of type k
-        site_prob = site_prox[s_args] / site_prox[s_args].sum()
-        done = 0
-        while (done < variety_k and len(s_args) > done):
-            # s_idx = np.random.choice(site_prob.shape[0], p=site_prob)
-            # s_idx = np.random.multinomial(1, pvals=site_prob).argmax()
+            # Number of discrete sites to choose from type k
+            variety_k = variety_per_type[k]
+            # Probability of sites of type k
+            site_prob = site_prox[s_args] / site_prox[s_args].sum()
+            done = 0
+            while (done < variety_k and len(s_args) > done):
+                # s_idx = np.random.choice(site_prob.shape[0], p=site_prob)
+                # s_idx = np.random.multinomial(1, pvals=site_prob).argmax()
 
-            # numba-stable/compatible way of np.random.choice (otherwise crashes)
-            s_idx = np.searchsorted(np.cumsum(site_prob), np.random.random(), side="right")
-            site = s_args[s_idx]
-            # Don't pick the same site twice
-            if site not in usual_sites_k:
-                usual_sites_k.append(site)
-                done+=1
+                # numba-stable/compatible way of np.random.choice (otherwise crashes)
+                s_idx = np.searchsorted(np.cumsum(site_prob), np.random.random(), side="right")
+                site = s_args[s_idx]
+                # Don't pick the same site twice
+                if site not in usual_sites_k:
+                    usual_sites_k.append(site)
+                    done+=1
 
         usual_sites.append(usual_sites_k)
 
@@ -164,10 +202,10 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
 
     return data
 
-@numba.njit
+# @numba.njit
 def _simulate_synthetic_mobility_traces(*, num_people, num_sites, max_time, home_loc, site_loc,
                             site_type, people_age, mob_rate_per_age_per_type, dur_mean_per_type,
-                            delta, seed):
+                            delta, seed,essential_workers, essential_mob_rate_per_type,essential_dur_mean_per_type,essential_work_site,essential_type):
     rd.seed(seed)
     np.random.seed(seed-1)
     data, visit_counts = list(), list()
@@ -176,25 +214,44 @@ def _simulate_synthetic_mobility_traces(*, num_people, num_sites, max_time, home
 
         # use mobility rates of specific age group
         mob_rate_per_type = mob_rate_per_age_per_type[people_age[i]]
-        data_i = _simulate_individual_synthetic_trace(
-            indiv=i,
-            num_sites=num_sites,
-            max_time=max_time,
-            home_loc=home_loc,
-            site_loc=site_loc,
-            site_type=site_type,
-            mob_rate_per_type=mob_rate_per_type,
-            dur_mean_per_type=dur_mean_per_type,
-            delta=delta)
+        
+        if essential_workers[i]:
+            data_i = _simulate_individual_synthetic_trace(
+                indiv=i,
+                num_sites=num_sites,
+                max_time=max_time,
+                home_loc=home_loc,
+                site_loc=site_loc,
+                site_type=site_type,
+                mob_rate_per_type=essential_mob_rate_per_type,
+                dur_mean_per_type=essential_dur_mean_per_type,
+                essential_work_site=essential_work_site[i],
+                essential_workers=essential_workers[i],
+                essential_type=essential_type,
+                delta=delta)
+        else:
+            data_i = _simulate_individual_synthetic_trace(
+                indiv=i,
+                num_sites=num_sites,
+                max_time=max_time,
+                home_loc=home_loc,
+                site_loc=site_loc,
+                site_type=site_type,
+                mob_rate_per_type=mob_rate_per_type,
+                dur_mean_per_type=dur_mean_per_type,
+                essential_worker_site=essential_work_site[i],
+                essential_workers=essential_workers[i],
+                essential_type=essential_type,
+                delta=delta)
 
         data.extend(data_i)
         visit_counts.append(len(data_i))
 
     return data, visit_counts
 
-@numba.njit
+# @numba.njit
 def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_age, mob_rate_per_age_per_type,
-                            dur_mean_per_type, home_tile, tile_site_dist, variety_per_type, delta, seed):
+                            dur_mean_per_type, home_tile, tile_site_dist, variety_per_type, delta, seed,essential_workers, essential_mob_rate_per_type, essential_dur_mean_per_type, essential_work_site,essential_type):
     rd.seed(seed)
     np.random.seed(seed-1)
     data, visit_counts = list(), list()
@@ -204,16 +261,33 @@ def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_ag
         mob_rate_per_type = mob_rate_per_age_per_type[people_age[i]]
         # use site distances from specific tiles
         site_dist = tile_site_dist[home_tile[i]]
-
-        data_i = _simulate_individual_real_trace(
-            indiv=i,
-            max_time=max_time,
-            site_type=site_type,
-            mob_rate_per_type=mob_rate_per_type,
-            dur_mean_per_type=dur_mean_per_type,
-            delta=delta,
-            variety_per_type=variety_per_type,
-            site_dist=site_dist)
+        
+        if essential_workers[i]:
+            data_i = _simulate_individual_real_trace(
+                indiv=i,
+                max_time=max_time,
+                site_type=site_type,
+                mob_rate_per_type=essential_mob_rate_per_type,
+                dur_mean_per_type=essential_dur_mean_per_type,
+                essential_work_site=essential_work_site[i],
+                essential_workers=essential_workers[i],
+                essential_type=essential_type,
+                delta=delta,
+                variety_per_type=variety_per_type,
+                site_dist=site_dist)
+        else:
+            data_i = _simulate_individual_real_trace(
+                indiv=i,
+                max_time=max_time,
+                site_type=site_type,
+                mob_rate_per_type=mob_rate_per_type,
+                dur_mean_per_type=dur_mean_per_type,
+                essential_work_site=essential_work_site[i],
+                essential_workers=essential_workers[i],
+                essential_type=essential_type,
+                delta=delta,
+                variety_per_type=variety_per_type,
+                site_dist=site_dist)
 
         data.extend(data_i)
         visit_counts.append(len(data_i))
@@ -271,7 +345,7 @@ class MobilitySimulator:
                 mob_rate_per_age_per_type=None, dur_mean_per_type=None, home_tile=None,
                 tile_site_dist=None, variety_per_type=None, people_household=None, downsample=None,
                 num_people=None, num_people_unscaled=None, num_sites=None, mob_rate_per_type=None,
-                dur_mean=None, num_age_groups=None, seed=None, verbose=False):
+                dur_mean=None, num_age_groups=None, seed=None, verbose=False, essential_workers=None, essential_mob_rate_per_type=None, essential_dur_mean_per_type=None, essential_work_site = None, essential_type = None, is_traced=None, is_traced_infectious=None):
         """
         delta : float
             Time delta to extend contacts
@@ -329,15 +403,20 @@ class MobilitySimulator:
         np.random.seed(seed-1)
         
         synthetic = (num_people is not None and num_sites is not None and mob_rate_per_type is not None and
-                    dur_mean is not None and num_age_groups is not None)
+                    dur_mean is not None and num_age_groups is not None and essential_workers is not None and essential_mob_rate_per_type is not None and essential_dur_mean_per_type is not None and essential_work_site is not None and essential_type is not None and is_traced is not None and is_traced_infectious is not None)
 
-        real = (home_loc is not None and people_age is not None and site_loc is not None and site_type is not None and
-                daily_tests_unscaled is not None and num_people_unscaled is not None and region_population is not None and
-                mob_rate_per_age_per_type is not None and dur_mean_per_type is not None and home_tile is not None and
-                tile_site_dist is not None and variety_per_type is not None and downsample is not None)
+        real = (home_loc is not None and people_age is not None and site_loc is not None and site_type is not None and site_dict is not None and num_people_unscaled is not None and region_population is not None and downsample is not None and mob_rate_per_age_per_type is not None and dur_mean_per_type is not None and variety_per_type is not None and daily_tests_unscaled is not None and delta is not None and home_tile is not None and tile_site_dist is not None and people_household is not None and essential_workers is not None and essential_mob_rate_per_type is not None and essential_dur_mean_per_type is not None and essential_work_site is not None and essential_type is not None and is_traced is not None and is_traced_infectious is not None)
 
         assert (synthetic != real), 'Unable to decide on real or synthetic mobility generation based on given arguments'
 
+        self.essential_workers=essential_workers
+        self.essential_mob_rate_per_type = np.array(essential_mob_rate_per_type)
+        self.essential_dur_mean_per_type = np.array(essential_dur_mean_per_type)
+        self.essential_work_site = essential_work_site
+        self.essential_type = essential_type
+        self.is_traced = is_traced
+        self.is_traced_infectious = is_traced_infectious
+        
         if synthetic:
 
             self.mode = 'synthetic'
@@ -376,7 +455,9 @@ class MobilitySimulator:
             
             self.home_tile=None
             self.tile_site_dist=None
-
+            
+#             '''Laura Change'''
+#             self.essential_workers = np.array([False for i in range(self.num_people)]) if essential_workers is None else np.array(essential_workers)
         elif real:
 
             self.mode = 'real'
@@ -416,6 +497,15 @@ class MobilitySimulator:
             self.site_type = np.array(site_type)
 
             self.variety_per_type=np.array(variety_per_type)
+            
+            
+#             # Init variables for essential workers
+#             # Note: any variables pertaining to essential workers is ignore if mode is 'synthetic'
+#             self.essential_workers = np.array([False for i in range(self.num_people)]) if essential_workers is None else np.array(essential_workers)
+#             self.essential_mob_rate_per_type = None if essential_mob_rate_per_type is None else np.array(essential_mob_rate_per_type)
+#             self.essential_dur_mean_per_type = self.dur_mean_per_type if essential_dur_mean_per_type is None else np.array(essential_dur_mean_per_type)
+#             self.essential_variety_per_type = self.variety_per_type if essential_variety_per_type is None else np.array(essential_variety_per_type)
+
 
             self.home_tile=np.array(home_tile)
             self.tile_site_dist=np.array(tile_site_dist)
@@ -514,8 +604,12 @@ class MobilitySimulator:
                 home_tile=self.home_tile,
                 variety_per_type=self.variety_per_type,
                 tile_site_dist=self.tile_site_dist,
-                seed=rd.randint(0, 2**32 - 1)
-                )
+                seed=rd.randint(0, 2**32 - 1),
+                essential_workers = self.essential_workers,
+                essential_mob_rate_per_type = self.essential_mob_rate_per_type,
+                essential_dur_mean_per_type = self.essential_dur_mean_per_type,
+                essential_work_site = self.essential_work_site,
+                essential_type = self.essential_type)
 
         # Group mobility traces per indiv 
         self.mob_traces = self._group_mob_traces(all_mob_traces)
@@ -613,13 +707,29 @@ class MobilitySimulator:
                             # Note 2: Contact contains the delta-extended visit of `indiv_j`
                             # (i.e. there is a `Contact` even when `indiv_j` never overlapped physically with `indiv_i`)
                             # (i.e. need to adjust for that in dY_i integral)
+#                             c = Contact(t_from=c_t_from,
+#                                         t_to=c_t_to,
+#                                         indiv_i=v.indiv,
+#                                         indiv_j=v_inf.indiv,
+#                                         id_tup=(v.id, v_inf.id),
+#                                         site=s,
+#                                         duration=c_t_to - c_t_from,
+#                                         i_contained=None,
+#                                         j_contained=None)
+
                             c = Contact(t_from=c_t_from,
                                         t_to=c_t_to,
                                         indiv_i=v.indiv,
                                         indiv_j=v_inf.indiv,
                                         id_tup=(v.id, v_inf.id),
                                         site=s,
-                                        duration=c_t_to - c_t_from)
+                                        duration=c_t_to - c_t_from,
+                                        data={'i_contained':None,      # infector contained
+                                                  'j_contained':None,      # susceptible contained
+                                                  'i_contained_by':[], # measures or status containing i
+                                                  'j_contained_by':[],  # measure or status containing j
+                                                  'i_contained_infectious':None,
+                                                  'j_contained_infectious':None})
 
                             # Add it to interlap
                             if for_all_individuals:

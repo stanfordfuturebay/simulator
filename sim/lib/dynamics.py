@@ -17,8 +17,10 @@ from lib.measures import (MeasureList, BetaMultiplierMeasureBySite,
     SocialDistancingForAllMeasure, BetaMultiplierMeasureByType,
     SocialDistancingPerStateMeasure, SocialDistancingForPositiveMeasure,
     SocialDistancingForPositiveMeasureHousehold,
+    SocialDistancingForSmartTracingHousehold,
     SocialDistancingByAgeMeasure, SocialDistancingForSmartTracing,
-    ComplianceForAllMeasure, SocialDistancingForKGroups)
+    ComplianceForAllMeasure, SocialDistancingForKGroups,
+    ComplianceForEssentialWorkers, SocialDistancingForNonEssential)
 
 TO_HOURS = 24.0
 
@@ -166,7 +168,32 @@ class DiseaseModel(object):
             'resi': np.inf * np.ones(self.n_people, dtype='float'),
             'dead': np.inf * np.ones(self.n_people, dtype='float'),
             'hosp': np.inf * np.ones(self.n_people, dtype='float'),
-        }   
+        }
+        
+        
+        self.is_traced =  {
+            'trace': 0 * np.ones(self.n_people, dtype='float')
+        }      
+        self.is_traced_state = {
+            'susc': np.zeros(self.n_people, dtype='float'),
+            'expo': np.zeros(self.n_people, dtype='float'),
+            'ipre': np.zeros(self.n_people, dtype='float'),
+            'isym': np.zeros(self.n_people, dtype='float'),
+            'iasy': np.zeros(self.n_people, dtype='float'),
+            'posi': np.zeros(self.n_people, dtype='float'),
+            'nega': np.zeros(self.n_people, dtype='float'),
+            'resi': np.zeros(self.n_people, dtype='float'),
+            'dead': np.zeros(self.n_people, dtype='float'),
+            'hosp': np.zeros(self.n_people, dtype='float'),
+        }
+        self.trace_started_at = {
+            'trace': [[] for i in range(self.n_people)]
+        }
+        self.trace_ended_at = {
+            'trace': [[] for i in range(self.n_people)]
+        }
+        
+        
         self.outcome_of_test = np.zeros(self.n_people, dtype='bool')
 
         # infector of i
@@ -192,6 +219,9 @@ class DiseaseModel(object):
             for i in seeds_:
                 assert(self.was_initial_seed[i] == False)
                 self.was_initial_seed[i] = True
+                               
+                self.trace_ended_at['trace'][i] = []
+                self.trace_started_at['trace'][i] = []
                 
                 # inital exposed
                 if state == 'expo':
@@ -203,7 +233,7 @@ class DiseaseModel(object):
                     self.state['expo'][i] = True
 
                     self.state_ended_at['susc'][i] = -1.0
-                    self.state_started_at['expo'][i] = -1.0
+                    self.state_started_at['expo'][i] = -1.0    
 
                     self.bernoulli_is_iasy[i] = 0
                     self.__process_presymptomatic_event(0.0, i)
@@ -288,7 +318,7 @@ class DiseaseModel(object):
                 else:
                     raise ValueError('Invalid initial seed state.')
 
-    def launch_epidemic(self, params, initial_counts, testing_params, measure_list, verbose=True):
+    def launch_epidemic(self, params, initial_counts, testing_params, measure_list, sampled_contacts, verbose=True):
         """
         Run the epidemic, starting from initial event list.
         Events are treated in order in a priority queue. An event in the queue is a tuple
@@ -363,6 +393,17 @@ class DiseaseModel(object):
                                    n_visits=max(self.mob.visit_counts))    
 
         self.measure_list.init_run(SocialDistancingForKGroups)
+        
+        self.measure_list.init_run(ComplianceForEssentialWorkers,
+                                   essential_workers=self.mob.essential_workers)
+        
+        self.measure_list.init_run(SocialDistancingForNonEssential,
+                                   n_people=self.n_people,
+                                   n_visits=max(self.mob.visit_counts),
+                                   essential_workers=self.mob.essential_workers)
+        
+        self.measure_list.init_run(SocialDistancingForSmartTracingHousehold,
+                                   n_people=self.n_people)
 
         # init state variables with seeds
         self.__init_run()
@@ -477,19 +518,23 @@ class DiseaseModel(object):
                     away_from_home = (infector_away_from_home or i_away_from_home)
                     
                     # 4) check whether infector is isolated from household members
-                    infector_isolated = self.measure_list.is_contained(
+                    infector_isolated = (self.measure_list.is_contained(
                         SocialDistancingForPositiveMeasureHousehold, t=t,
                         j=infector, 
                         state_posi_started_at=self.state_started_at['posi'], 
                         state_posi_ended_at=self.state_ended_at['posi'], 
                         state_resi_started_at=self.state_started_at['resi'], 
-                        state_dead_started_at=self.state_started_at['dead'])             
+                        state_dead_started_at=self.state_started_at['dead']) or
+                    self.measure_list.is_contained(SocialDistancingForSmartTracingHousehold, t=t, j=infector))
+
+                    i_isolated = self.measure_list.is_contained(SocialDistancingForSmartTracingHousehold, t=t, j=i)
 
                     # if none of 1), 2), 3), 4) are true, the event is valid
                     if  (not infector_recovered) and \
                         (not infector_hospitalized) and \
                         (not away_from_home) and \
-                        (not infector_isolated):
+                        (not infector_isolated) and \
+                        (not i_isolated):
 
                         self.__process_exposure_event(t, i, infector)
 
@@ -512,36 +557,82 @@ class DiseaseModel(object):
                         (self.state['resi'][infector] or 
                             self.state['dead'][infector])
 
-                    # 2) check whether infector stayed at home due to measures
+                    '''Zihan'''
+                    # 2) check whether infector got hospitalized
+                    infector_hospitalized = self.state['hosp'][infector]
+                    
+                    # 3) check whether infector stayed at home due to measures
                     #    or got hospitalized
-                    infector_contained = self.is_person_home_from_visit_due_to_measure(
-                        t=t, i=infector, visit_id=infector_visit_id) \
-                        or self.state['hosp'][infector]
+                    infector_contained, infector_measures_effective_list = self.is_person_home_from_visit_due_to_measure_detail(
+                        t=t, i=infector, visit_id=infector_visit_id)
                                             
-                    # 3) check whether susceptible stayed at home due to measures
-                    i_contained = self.is_person_home_from_visit_due_to_measure(
+                    # 4) check whether susceptible stayed at home due to measures
+                    i_contained, i_measures_effective_list = self.is_person_home_from_visit_due_to_measure_detail(
                         t=t, i=i, visit_id=i_visit_id)  
 
-                    # 4) check whether infectiousness got reduced due to site specific 
+                    # 5) check whether infectiousness got reduced due to site specific 
                     #    measures and as a consequence this event didn't occur
                     rejection_prob = self.reject_exposure_due_to_measure(t=t, k=k)
                     site_avoided_infection =  (np.random.uniform() < rejection_prob)
 
-                    # if none of 1), 2), 3), 4) are true, the event is valid
+                    # if none of 1), 2), 3), 4), 5) are true, the event is valid
                     if  (not infector_recovered) and \
+                        (not infector_hospitalized) and \
                         (not infector_contained) and \
                         (not i_contained) and \
                         (not site_avoided_infection):
 
                         self.__process_exposure_event(t, i, infector)
+                        contact.data['i_contained'] = False
+                        contact.data['j_contained'] = False
 
-                    # if any of 2), 3), 4) were true, an infection could happen 
+                    # if 1) or 2) is true, the event is not contained by any measure, but by status
+                    if infector_recovered:
+                        contact.data['i_contained'] = True
+                        contact.data['i_contained_by'].append('resi/dead')
+                        
+                    if infector_hospitalized:
+                        contact.data['i_contained'] = True
+                        contact.data['i_contained_by'].append('hosp')
+                        # an infection could happen at a later point, hence sample a new event 
+                        mu_infector = self.mu if self.state['iasy'][infector] else 1.0
+                        self.__push_contact_exposure_infector_to_j(
+                            t=t, infector=infector, j=i, base_rate=mu_infector)
+                    
+                    # if any of 3), 4), 5) were true, an infection could happen 
                     # at a later point, hence sample a new event 
                     if (infector_contained or i_contained or site_avoided_infection):
 
-                        mu_infector = self.mu if self.state['iasy'][infector] else 1.0
-                        self.__push_contact_exposure_infector_to_j(
-                            t=t, infector=infector, j=i, base_rate=mu_infector)                    
+                        if not infector_hospitalized: # avoid pushing future exposure repeatedly
+                            mu_infector = self.mu if self.state['iasy'][infector] else 1.0
+                            self.__push_contact_exposure_infector_to_j(
+                                t=t, infector=infector, j=i, base_rate=mu_infector)
+                        
+                        if infector_contained:
+                            contact.data['i_contained'] = True
+                            contact.data['i_contained_by'] += [i for i, x in enumerate(infector_measures_effective_list) if x == True]
+                        if i_contained:
+                            contact.data['j_contained'] = True
+                            contact.data['j_contained_by'] += [i for i, x in enumerate(i_measures_effective_list) if x == True]
+                        if site_avoided_infection:
+                            contact.data['i_contained'] = True
+                            contact.data['j_contained'] = True
+                            contact.data['i_contained_by'].append('site_measures')
+                            contact.data['j_contained_by'].append('site_measures')
+                    
+                    if infector_contained:
+                        if self.state['iasy'][infector] or self.state['isym'][infector] or self.state['ipre'][infector] or self.state['posi'][infector]:
+                            contact.data['i_contained_infectious'] = True
+                        else:
+                            contact.data['i_contained_infectious'] = False
+                    if i_contained:
+                        if self.state['iasy'][i] or self.state['isym'][i] or self.state['ipre'][i] or self.state['posi'][i]:
+                            contact.data['j_contained_infectious'] = True
+                        else:
+                            contact.data['j_contained_infectious'] = False
+ 
+                    sampled_contacts.append(contact)
+                    '''Zihan'''
 
             elif event == 'ipre':
                 self.__process_presymptomatic_event(t, i)
@@ -956,9 +1047,46 @@ class DiseaseModel(object):
                 j=i) or
             self.measure_list.is_contained(
                 UpperBoundCasesSocialDistancing, t=t,
-                j=i, j_visit_id=visit_id, t_pos_tests=self.t_pos_tests)
+                j=i, j_visit_id=visit_id, t_pos_tests=self.t_pos_tests) or
+            self.measure_list.is_contained(
+                SocialDistancingForNonEssential, t=t,
+                j=i, j_visit_id=visit_id)
         )
         return is_home
+    
+    '''Zihan'''
+    def is_person_home_from_visit_due_to_measure_detail(self, t, i, visit_id):
+        '''
+        Returns True/False of whether person i stayed at home from visit
+        `visit_id` due to any measures
+        '''
+
+        measures_effective_list = [self.measure_list.is_contained(
+            SocialDistancingForAllMeasure, t=t,
+            j=i, j_visit_id=visit_id), 
+        self.measure_list.is_contained(
+            SocialDistancingForPositiveMeasure, t=t,
+            j=i, j_visit_id=visit_id, 
+            state_posi_started_at=self.state_started_at['posi'],
+            state_posi_ended_at=self.state_ended_at['posi'],
+            state_resi_started_at=self.state_started_at['resi'],
+            state_dead_started_at=self.state_started_at['dead']),
+        self.measure_list.is_contained(
+            SocialDistancingByAgeMeasure, t=t,
+            age=self.people_age[i], j_visit_id=visit_id),
+        self.measure_list.is_contained(
+            SocialDistancingForSmartTracing, t=t,
+            j=i, j_visit_id=visit_id), 
+        self.measure_list.is_contained(
+            SocialDistancingForKGroups, t=t,
+            j=i),
+        self.measure_list.is_contained(
+            UpperBoundCasesSocialDistancing, t=t,
+            j=i, j_visit_id=visit_id, t_pos_tests=self.t_pos_tests)]
+        
+        is_home = (True in measures_effective_list)
+        return is_home, measures_effective_list
+        '''Zihan'''
 
 
     def __apply_for_testing(self, t, i, s=0.0):
@@ -1041,8 +1169,10 @@ class DiseaseModel(object):
                 self.state_ended_at['posi'][i] = t
 
         # smart tracing
-        is_i_compliant = self.measure_list.is_compliant(
-            ComplianceForAllMeasure, t=t-self.test_smart_delta, j=i)
+        is_i_compliant = (self.measure_list.is_compliant(
+                                ComplianceForAllMeasure, t=t-self.test_smart_delta, j=i) or
+                         self.measure_list.is_compliant(
+                                ComplianceForEssentialWorkers, t=t-self.test_smart_delta, j=i))
 
         # if i is not compliant, skip
         if not is_i_compliant:
@@ -1081,8 +1211,10 @@ class DiseaseModel(object):
         
         for j in valid_contacts:
             # check compliance
-            is_j_compliant = self.measure_list.is_compliant(
-                ComplianceForAllMeasure, t=t-self.test_smart_delta, j=j)
+            is_j_compliant = (self.measure_list.is_compliant(
+                                ComplianceForAllMeasure, t=t-self.test_smart_delta, j=j) or
+                             self.measure_list.is_compliant(
+                                ComplianceForEssentialWorkers, t=t-self.test_smart_delta, j=j))
             
             # if j is not compliant, skip
             if not is_j_compliant:
@@ -1105,8 +1237,20 @@ class DiseaseModel(object):
             contact = contacts.pop()
             if self.test_smart_action == 'isolate':
                 self.measure_list.start_containment(SocialDistancingForSmartTracing, t=t, j=contact)
+                self.measure_list.start_containment(SocialDistancingForSmartTracingHousehold, t=t, j=contact)
             if self.test_smart_action == 'test':
                 self.__apply_for_testing(t, contact)
+            
+                       
+            self.is_traced['trace'][contact] += 1
+            for cur_state in self.legal_states:
+                if self.state[cur_state][contact]:
+                    self.is_traced_state[cur_state][contact] += 1
+            
+            self.trace_started_at['trace'][contact].append(t)
+            self.trace_ended_at['trace'][contact].append(t + self.test_smart_duration)
+            
+ 
     
     # compute empirical survival probability of individual j due to node i at time t
     def __compute_empirical_survival_probability(self, t, i, j):
@@ -1130,10 +1274,13 @@ class DiseaseModel(object):
             # Check SocialDistancing measures
             is_j_contained = self.is_person_home_from_visit_due_to_measure(t=start_next_contact, i=j, visit_id=j_visit_id)  
             is_i_contained = self.is_person_home_from_visit_due_to_measure(t=start_next_contact, i=i, visit_id=i_visit_id)
+            '''Laura'''
+            #contact.data['j_contained'] = is_j_contained
+            #contact.data['i_contained'] = is_i_contained
+            '''end'''
                 
             # check hospitalization
-            is_i_contained = is_i_contained or (
-                self.state['hosp'][i] and self.state_started_at['hosp'][i] < start_next_contact)
+            is_i_contained = is_i_contained or (self.state['hosp'][i] and self.state_started_at['hosp'][i] < start_next_contact)
                     
             # BetaMultiplier measures
             site = contact.site
@@ -1156,7 +1303,6 @@ class DiseaseModel(object):
             if (not is_j_contained) and (not is_i_contained):
                 if self.smart_tracing == 'basic':
                     valid_contact = True
-                    break
                 elif self.smart_tracing == 'advanced':
                     s += (min(end_next_contact, t) - start_next_contact) \
                          * self.betas[self.site_dict[self.site_type[site]]] * beta_fact

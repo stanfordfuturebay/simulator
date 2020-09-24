@@ -35,7 +35,7 @@ tile_level_dict = {
 }
 
 def generate_population(bbox, population_per_age_group, density_file=None, tile_level=16, seed=None,
-                        density_site_loc=None, household_info=None):
+                        density_site_loc=None, household_info=None, essential_prop_per_age_group=None,site_type=None,essential_type=None):
     
     # raise error if tile level is invalid
     assert (type(tile_level)==int and tile_level>=0 and tile_level<=20), 'Invalid tile level'
@@ -54,7 +54,9 @@ def generate_population(bbox, population_per_age_group, density_file=None, tile_
 
         # read population density file
         pops = pd.read_csv(density_file)
-
+        pops = pops.dropna(axis=0, how='any')
+        pops = pops.groupby(['Lat','Lon'], as_index=False).mean()
+        
         # discard records out of the bounding box
         pops = pops.loc[(pops['Lat'] >= bbox[0]) & (pops['Lat'] <= bbox[1]) & (pops['Lon'] >= bbox[2]) & (pops['Lon'] <= bbox[3])]
         
@@ -139,6 +141,10 @@ def generate_population(bbox, population_per_age_group, density_file=None, tile_
     home_tile=[]
     tile_loc=[]
     i_tile=0
+    essential_workers=[]
+    num_essential_workers = 0
+    essential_work_site = []
+    
     for _, t in tiles.iterrows():
         lat=t['lat']
         lon=t['lon']
@@ -152,8 +158,44 @@ def generate_population(bbox, population_per_age_group, density_file=None, tile_
         # store the tile to which each home belongs
         home_tile+=pop*[i_tile]
         # age group assigned proportionally to the real statistics
-        people_age+=list(np.random.multinomial(n=1, pvals=age_proportions, size=pop).argmax(axis=1))
+        new_people_ages=list(np.random.multinomial(n=1, pvals=age_proportions, size=pop).argmax(axis=1))
+        people_age+=new_people_ages
         i_tile+=1
+        
+#         if essential_prop_per_age_group is not None:
+#             essential_workers+=[(np.random.rand()<essential_prop_per_age_group[new_people_ages[i]]) for i in range(len(new_people_ages))]
+#         else:
+#             essential_workers+=[False for i in range(len(new_people_ages))]
+
+        if essential_prop_per_age_group is not None:
+            essential_site_ind = []
+            cum_prob_essential_workers_per_site = []
+            num_essential_type = 0
+            for i in range(len(site_type)):
+                if site_type[i]==essential_type:
+                    num_essential_type += 1
+                    essential_site_ind += [i]
+            prob_essential_workers_per_site = np.array([1/num_essential_type]*num_essential_type)
+            cum_prob_essential_workers_per_site.append(0)
+            cum_prob_essential_workers_per_site.extend(np.cumsum(prob_essential_workers_per_site))
+
+            for i in range(len(new_people_ages)):
+                a = np.random.rand()
+                for j in range(len(population_per_age_group)):
+                    if new_people_ages[i] == j:
+                        b = (a<essential_prop_per_age_group[j])
+                        essential_workers += [b]
+                if b:
+                    num_essential_workers += 1
+                    a = np.random.rand()
+                    for j in range(len(cum_prob_essential_workers_per_site)-1):
+                        if (a >= cum_prob_essential_workers_per_site[j]) and (a < cum_prob_essential_workers_per_site[j+1]):
+                            essential_work_site += [essential_site_ind[j]]
+                else:
+                    essential_work_site += [-10]
+        else:
+            essential_workers = None
+            essential_work_site = None
 
     if household_info is not None:
         # pick a societal role for each person depending on the age group
@@ -252,8 +294,11 @@ def generate_population(bbox, population_per_age_group, density_file=None, tile_
     else:
         # set all people as independent 1-person families
         people_household = np.array([i for i in range(len(home_loc))])
+    
+    is_traced = np.zeros((population+1), dtype=int)
+    is_traced_infectious = [None]*(population+1)
 
-    return home_loc, people_age, home_tile, tile_loc, people_household
+    return home_loc, people_age, home_tile, tile_loc, people_household, essential_workers, num_essential_workers, essential_work_site, is_traced, is_traced_infectious
 
 def overpass_query(bbox, contents):
     overpass_bbox = str((bbox[0],bbox[2],bbox[1],bbox[3]))
@@ -263,7 +308,7 @@ def overpass_query(bbox, contents):
     query += '); out center;'
     return query
 
-def generate_sites(bbox, query_files, site_based_density_file=None):
+def generate_sites(bbox, query_files, sites_path, site_based_density_file=None):
     
     overpass_url = "http://overpass-api.de/api/interpreter"
     site_loc=[]
@@ -271,7 +316,31 @@ def generate_sites(bbox, query_files, site_based_density_file=None):
     site_dict={}
     density_site_loc=[]
 
+    '''Laura Change'''
+    query_files.sort()
+    
     type_ind=0
+    # Zihan: subdivide offices with levels or height information into multiple office sites
+    level_height = 3 # 3m per level
+    # First read supermarkets if queried
+    spmkt = False
+    try: 
+        with open(sites_path+'/supermarket.txt', 'r') as q:
+
+            # site type is extracted by the txt file name
+            s_type = 'supermarket'
+
+            # read all query parameters
+            contents = q.readlines()
+            contents = [c for c in contents if c!='']
+
+            # generate and call overpass queries 
+            response = requests.get(overpass_url, params={'data': overpass_query(bbox, contents)})
+            data_supermarket = response.json()
+            supermarkets_sites = data_supermarket['elements']
+            spmkt = True
+    except:
+        print('No supermarket in query files.')
     for q_ind, qf in enumerate(query_files):
         with open(qf, 'r') as q:
 
@@ -297,10 +366,24 @@ def generate_sites(bbox, query_files, site_based_density_file=None):
             # read sites latitude and longitude
             locs_to_add=[]
             for site in data['elements']:
-                if site['type']=='way':
-                    locs_to_add.append([site['center']['lat'], site['center']['lon']])
-                elif site['type']=='node':
-                    locs_to_add.append([site['lat'], site['lon']])
+                if s_type == "office" and spmkt == True:
+                    if site in supermarkets_sites:
+                        continue # skip sites included in the supermarket type.
+                if s_type == "office" and (site.get('tags').get('building:levels') != None or site.get('tags').get('height') != None):
+                    if site.get('tags').get('building:levels') != None:
+                        levels = int(site.get('tags').get('building:levels'))				
+                    else:
+                        levels = round(float(str.split(site.get('tags').get('height'))[0])/level_height)
+                    for level in range(levels): # each level is an office site
+                        if site['type']=='way':
+                            locs_to_add.append([site['center']['lat'], site['center']['lon']])
+                        elif site['type']=='node':
+                            locs_to_add.append([site['lat'], site['lon']])
+                else:
+                    if site['type']=='way':
+                        locs_to_add.append([site['center']['lat'], site['center']['lon']])
+                    elif site['type']=='node':
+                        locs_to_add.append([site['lat'], site['lon']])
 
             site_type += len(locs_to_add)*[type_ind]
             site_loc += locs_to_add

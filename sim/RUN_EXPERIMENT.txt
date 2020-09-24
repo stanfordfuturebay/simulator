@@ -1,0 +1,1 @@
+python3.6 experiments_server_7-1.py --outfile contact_record_test --num_workers 5 --random_repeats 20
