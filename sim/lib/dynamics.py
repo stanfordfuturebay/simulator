@@ -17,10 +17,9 @@ from lib.measures import (MeasureList, BetaMultiplierMeasureBySite,
     SocialDistancingForAllMeasure, BetaMultiplierMeasureByType,
     SocialDistancingPerStateMeasure, SocialDistancingForPositiveMeasure,
     SocialDistancingForPositiveMeasureHousehold,
-    SocialDistancingForSmartTracingHousehold,
     SocialDistancingByAgeMeasure, SocialDistancingForSmartTracing,
     ComplianceForAllMeasure, SocialDistancingForKGroups,
-    ComplianceForEssentialWorkers, SocialDistancingForNonEssential)
+    ComplianceForEssentialWorkers, SocialDistancingForNonEssential, SocialDistancingForSmartTracingHousehold)
 
 TO_HOURS = 24.0
 
@@ -168,11 +167,12 @@ class DiseaseModel(object):
             'resi': np.inf * np.ones(self.n_people, dtype='float'),
             'dead': np.inf * np.ones(self.n_people, dtype='float'),
             'hosp': np.inf * np.ones(self.n_people, dtype='float'),
-        }
+        }   
         
         
         self.is_traced =  {
-            'trace': 0 * np.ones(self.n_people, dtype='float')
+            'CT': 0 * np.ones(self.n_people, dtype='float'),
+            'posi_measure': 0 * np.ones(self.n_people, dtype='float')
         }      
         self.is_traced_state = {
             'susc': np.zeros(self.n_people, dtype='float'),
@@ -187,10 +187,30 @@ class DiseaseModel(object):
             'hosp': np.zeros(self.n_people, dtype='float'),
         }
         self.trace_started_at = {
-            'trace': [[] for i in range(self.n_people)]
+            'susc': [[] for i in range(self.n_people)],
+            'expo': [[] for i in range(self.n_people)],
+            'ipre': [[] for i in range(self.n_people)],
+            'isym': [[] for i in range(self.n_people)],
+            'iasy': [[] for i in range(self.n_people)],
+            'posi': [[] for i in range(self.n_people)],
+            'nega': [[] for i in range(self.n_people)],
+            'resi': [[] for i in range(self.n_people)],
+            'dead': [[] for i in range(self.n_people)],
+            'hosp': [[] for i in range(self.n_people)],
+            'posi_measure': [[] for i in range(self.n_people)],
         }
         self.trace_ended_at = {
-            'trace': [[] for i in range(self.n_people)]
+            'susc': [[] for i in range(self.n_people)],
+            'expo': [[] for i in range(self.n_people)],
+            'ipre': [[] for i in range(self.n_people)],
+            'isym': [[] for i in range(self.n_people)],
+            'iasy': [[] for i in range(self.n_people)],
+            'posi': [[] for i in range(self.n_people)],
+            'nega': [[] for i in range(self.n_people)],
+            'resi': [[] for i in range(self.n_people)],
+            'dead': [[] for i in range(self.n_people)],
+            'hosp': [[] for i in range(self.n_people)],
+            'posi_measure': [[] for i in range(self.n_people)],
         }
         
         
@@ -206,6 +226,10 @@ class DiseaseModel(object):
         
         # smart tracing
         self.empirical_survival_probability = np.ones(self.n_people, dtype='float')
+        
+        # Zihan:
+        self.num_expo_house = 0
+        self.num_expo_contact = 0
 
     def initialize_states_for_seeds(self):
         """
@@ -219,9 +243,12 @@ class DiseaseModel(object):
             for i in seeds_:
                 assert(self.was_initial_seed[i] == False)
                 self.was_initial_seed[i] = True
-                               
-                self.trace_ended_at['trace'][i] = []
-                self.trace_started_at['trace'][i] = []
+                
+                for cur_state in self.legal_states:
+                    self.trace_ended_at[cur_state][i] = []
+                    self.trace_started_at[cur_state][i] = []
+                self.trace_ended_at['posi_measure'][i] = []
+                self.trace_started_at['posi_measure'][i] = []
                 
                 # inital exposed
                 if state == 'expo':
@@ -233,7 +260,7 @@ class DiseaseModel(object):
                     self.state['expo'][i] = True
 
                     self.state_ended_at['susc'][i] = -1.0
-                    self.state_started_at['expo'][i] = -1.0    
+                    self.state_started_at['expo'][i] = -1.0
 
                     self.bernoulli_is_iasy[i] = 0
                     self.__process_presymptomatic_event(0.0, i)
@@ -403,7 +430,7 @@ class DiseaseModel(object):
                                    essential_workers=self.mob.essential_workers)
         
         self.measure_list.init_run(SocialDistancingForSmartTracingHousehold,
-                                   n_people=self.n_people)
+                                  n_people=self.n_people)
 
         # init state variables with seeds
         self.__init_run()
@@ -519,17 +546,18 @@ class DiseaseModel(object):
                     
                     # 4) check whether infector is isolated from household members
                     infector_isolated = (self.measure_list.is_contained(
-                        SocialDistancingForPositiveMeasureHousehold, t=t,
-                        j=infector, 
-                        state_posi_started_at=self.state_started_at['posi'], 
-                        state_posi_ended_at=self.state_ended_at['posi'], 
-                        state_resi_started_at=self.state_started_at['resi'], 
-                        state_dead_started_at=self.state_started_at['dead']) or
-                    self.measure_list.is_contained(SocialDistancingForSmartTracingHousehold, t=t, j=infector))
+                            SocialDistancingForPositiveMeasureHousehold, t=t,
+                            j=infector, 
+                            state_posi_started_at=self.state_started_at['posi'], 
+                            state_posi_ended_at=self.state_ended_at['posi'], 
+                            state_resi_started_at=self.state_started_at['resi'], 
+                            state_dead_started_at=self.state_started_at['dead']) or 
+                        self.measure_list.is_contained(SocialDistancingForSmartTracingHousehold, t=t, j=infector))
 
+                    # 5) check whether i is isolated due to contact tracing
                     i_isolated = self.measure_list.is_contained(SocialDistancingForSmartTracingHousehold, t=t, j=i)
 
-                    # if none of 1), 2), 3), 4) are true, the event is valid
+                    # if none of 1), 2), 3), 4), 5)are true, the event is valid
                     if  (not infector_recovered) and \
                         (not infector_hospitalized) and \
                         (not away_from_home) and \
@@ -537,9 +565,10 @@ class DiseaseModel(object):
                         (not i_isolated):
 
                         self.__process_exposure_event(t, i, infector)
+                        self.num_expo_house += 1
 
-                    # if 2) or 3) were true, a household infection could happen at a later point, hence sample a new event
-                    if (infector_hospitalized or away_from_home):
+                    # if 2) or 3) or 4) or 5) were true, a household infection could happen at a later point, hence sample a new event
+                    if (infector_hospitalized or away_from_home or infector_isolated or i_isolated):
 
                         mu_infector = self.mu if self.state['iasy'][infector] else 1.0
                         self.__push_household_exposure_infector_to_j(
@@ -585,6 +614,7 @@ class DiseaseModel(object):
                         self.__process_exposure_event(t, i, infector)
                         contact.data['i_contained'] = False
                         contact.data['j_contained'] = False
+                        self.num_expo_contact += 1
 
                     # if 1) or 2) is true, the event is not contained by any measure, but by status
                     if infector_recovered:
@@ -630,7 +660,7 @@ class DiseaseModel(object):
                             contact.data['j_contained_infectious'] = True
                         else:
                             contact.data['j_contained_infectious'] = False
- 
+                    
                     sampled_contacts.append(contact)
                     '''Zihan'''
 
@@ -1052,6 +1082,18 @@ class DiseaseModel(object):
                 SocialDistancingForNonEssential, t=t,
                 j=i, j_visit_id=visit_id)
         )
+        
+        if self.measure_list.is_contained(
+                SocialDistancingForPositiveMeasure, t=t,
+                j=i, j_visit_id=visit_id, 
+                state_posi_started_at=self.state_started_at['posi'],
+                state_posi_ended_at=self.state_ended_at['posi'],
+                state_resi_started_at=self.state_started_at['resi'],
+                state_dead_started_at=self.state_started_at['dead']):
+            self.is_traced['posi_measure'][i] += 1
+            self.trace_started_at['posi_measure'][i].append(self.state_started_at['posi'])
+            self.trace_ended_at['posi_measure'][i].append(self.state_ended_at['posi'])
+        
         return is_home
     
     '''Zihan'''
@@ -1240,17 +1282,22 @@ class DiseaseModel(object):
                 self.measure_list.start_containment(SocialDistancingForSmartTracingHousehold, t=t, j=contact)
             if self.test_smart_action == 'test':
                 self.__apply_for_testing(t, contact)
+                
+                
             
-                       
-            self.is_traced['trace'][contact] += 1
+            self.is_traced['CT'][contact] += 1
             for cur_state in self.legal_states:
                 if self.state[cur_state][contact]:
                     self.is_traced_state[cur_state][contact] += 1
+                    self.trace_started_at[cur_state][contact].append(t)
+                    self.trace_ended_at[cur_state][contact].append(t + self.test_smart_duration)
             
-            self.trace_started_at['trace'][contact].append(t)
-            self.trace_ended_at['trace'][contact].append(t + self.test_smart_duration)
+#             self.trace_started_at['trace'][contact].append(t)
+#             self.trace_ended_at['trace'][contact].append(t + self.test_smart_duration)
             
- 
+                # TODO: does this go here? Will isolate j from household for test_smart_duration, even if j has 
+                # received a negative test result
+                #self.measure_list.start_containment(SocialDistancingForSmartTracingHousehold, t=t, j=contact)
     
     # compute empirical survival probability of individual j due to node i at time t
     def __compute_empirical_survival_probability(self, t, i, j):
