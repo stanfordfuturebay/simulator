@@ -246,7 +246,7 @@ def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_ag
         # use site distances from specific tiles
         site_dist = tile_site_dist[home_tile[i]]
         
-        if essential_workers[i] is True:
+        if essential_workers[i]==True:
             mob_rate_per_type = essential_mob_rate_per_type
             dur_mean_per_type = essential_dur_mean_per_type
         
