@@ -68,26 +68,20 @@ def generate_sf_essential(prop_essential_total):
     
     return essential_workers
 
+
+
+def num_people(summary):
+    return len(summary.people_age[0])
+
 def num_essential(summary):
     return summary.essential_workers[0].sum()
 
 def num_nonessential(summary):
     return (summary.essential_workers[0]==False).sum()
-    
-def num_essential_infected(summary):
-    # individuals in any of these states are either currently infected or were once infected (dead or recovered)
-    has_been_infected_states = ['expo','ipre','isym','iasy','resi','dead']
-#     result = {}
-    result = 0.0
-    for state in has_been_infected_states:
-        arr = summary.state[state]
-        temp = np.broadcast_to((summary.essential_workers[0]==True), (len(arr),len(summary.essential_workers[0])))
-        result += (arr[temp].sum() / float(summary.random_repeats))
-#         result[state] = arr[summary.essential_workers[0]==True].sum() / float(summary.random_repeats)
-    return result
-    
-def num_people(summary):
-    return len(summary.people_age[0])
+
+def num_type_people(summary,wtype):
+    return (summary.worker_types[0]==wtype).sum()
+
 
 def num_infected(summary):
     has_been_infected_states = ['expo','ipre','isym','iasy','resi','dead']
@@ -106,6 +100,29 @@ def num_nonessential_infected(summary):
         result += (arr[temp].sum() / float(summary.random_repeats))
     return result
 
+def num_essential_infected(summary):
+    # individuals in any of these states are either currently infected or were once infected (dead or recovered)
+    has_been_infected_states = ['expo','ipre','isym','iasy','resi','dead']
+#     result = {}
+    result = 0.0
+    for state in has_been_infected_states:
+        arr = summary.state[state]
+        temp = np.broadcast_to((summary.essential_workers[0]==True), (len(arr),len(summary.essential_workers[0])))
+        result += (arr[temp].sum() / float(summary.random_repeats))
+#         result[state] = arr[summary.essential_workers[0]==True].sum() / float(summary.random_repeats)
+    return result
+
+def num_type_infected(summary,wtype):
+    # individuals in any of these states are either currently infected or were once infected (dead or recovered)
+    has_been_infected_states = ['expo','ipre','isym','iasy','resi','dead']
+#     result = {}
+    result = 0.0
+    for state in has_been_infected_states:
+        arr = summary.state[state]
+        temp = np.broadcast_to((summary.worker_types[0]==wtype), (len(arr),len(summary.worker_types[0])))
+        result += (arr[temp].sum() / float(summary.random_repeats))
+#         result[state] = arr[summary.essential_workers[0]==True].sum() / float(summary.random_repeats)
+    return result
 
 def num_contacts_uncontained(summary):
     ncu_total = 0
@@ -123,6 +140,37 @@ def num_contacts_uncontained(summary):
     ncu_nonessential /= len(summary.mob)
     ncu_essential /= len(summary.mob)
     return ncu_total, ncu_nonessential, ncu_essential
+
+
+def num_contacts_uncontained_new(summary):
+    ncu_total = 0
+    ncu_nonessential = 0
+    ncu_education = 0
+    ncu_office = 0
+    ncu_social = 0
+    ncu_supermarket = 0
+    for i in range(len(summary.mob)):
+        for contact in summary.mob[i]:
+            if (contact.data['i_contained']==False) and (contact.data['j_contained']==False):
+                ncu_total +=1
+                wtype = summary.worker_types[0][contact.indiv_j]
+                if wtype==0:
+                    ncu_education += 1
+                elif wtype==1:
+                    ncu_office += 1
+                elif wtype==2:
+                    ncu_social += 1
+                elif wtype==3:
+                    ncu_supermarket += 1
+                else:
+                    ncu_nonessential += 1
+    ncu_total /= len(summary.mob)
+    ncu_nonessential /= len(summary.mob)
+    ncu_education /= len(summary.mob)
+    ncu_office /= len(summary.mob)
+    ncu_social /= len(summary.mob)
+    ncu_supermarket /= len(summary.mob)
+    return ncu_total, ncu_nonessential, ncu_education, ncu_office, ncu_social, ncu_supermarket
     
 def make_summary_df(summary):
     df = pd.DataFrame(index=['num_people','num_infected','pct_infected','num_contacts'],columns=['Total','Nonessential','Essential'])
@@ -137,6 +185,22 @@ def make_summary_df(summary):
     df.loc['pct_infected','Essential'] = float(df.loc['num_infected','Essential']) / df.loc['num_people','Essential']
     df.loc['pct_infected'] = df.loc['pct_infected'].apply('{:.1%}'.format)
     df.loc['num_contacts', :] = num_contacts_uncontained(summary)
+    return df
+
+
+def make_summary_df_new(summary):
+    df = pd.DataFrame(index=['num_people','num_infected','pct_infected','num_contacts'],columns=['Total','Nonessential','Education','Office','Social','Supermarket'])
+    df.loc['num_people','Total'] = num_people(summary)
+    df.loc['num_infected','Total'] = num_infected(summary)
+    df.loc['pct_infected','Total'] = (float(df.loc['num_infected','Total']) / df.loc['num_people','Total'])
+    for i, col in enumerate(df.columns[1:]):
+        wtype = i-1
+        df.loc['num_people',col] = num_type_people(summary,wtype)
+        df.loc['num_infected',col] = num_type_infected(summary)
+        df.loc['pct_infected',col] = float(df.loc['num_infected',col]) / df.loc['num_people',col]
+    
+    df.loc['num_contacts', :] = num_contacts_uncontained_new(summary)     
+    df.loc['pct_infected'] = df.loc['pct_infected'].apply('{:.1%}'.format)
     return df
     
     
