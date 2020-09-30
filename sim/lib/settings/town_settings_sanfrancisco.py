@@ -93,5 +93,36 @@ def _essential_mobility(wtype):
     else:
         return None, None, None
     return essential_mob_rate_per_type, essential_dur_mean_per_type, essential_variety_per_type
+
+def _worker_mobility():
+    worker_mob_rate_per_types = [
+        [5.0, 0.0, 3.6, 0.27],
+        [0.0, 5.0, 3.6, 0.27],
+        [0.0, 0.0, 5.0, 0.27],
+        [0.0, 0.0, 3.6,  5.0]
+    ]
+    worker_dur_mean_per_types = [
+        [5.0, 0.1, 0.64, 0.4],
+        [0.1, 5.0, 0.64, 0.4],
+        [0.1, 0.1, 5.0, 0.4],
+        [0.1, 0.1, 0.64, 5.0]
+    ]
+    worker_variety_per_types = [
+        [1, 1, 10, 2],
+        [1, 1, 10, 2],
+        [1, 1, 10, 2],
+        [1, 1, 10, 2]
+    ]
+    return worker_mob_rate_per_types, worker_dur_mean_per_types, worker_variety_per_types
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     

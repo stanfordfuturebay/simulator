@@ -35,7 +35,7 @@ tile_level_dict = {
 }
 
 def generate_population(bbox, population_per_age_group, density_file=None, tile_level=16, seed=None,
-                        density_site_loc=None, household_info=None, essential_prop_per_age_group=None, site_type=None, essential_type=None):
+                        density_site_loc=None, household_info=None, essential_prop_per_age_group=None, num_worker_types=None):
     
     # raise error if tile level is invalid
     assert (type(tile_level)==int and tile_level>=0 and tile_level<=20), 'Invalid tile level'
@@ -141,10 +141,8 @@ def generate_population(bbox, population_per_age_group, density_file=None, tile_
     home_tile=[]
     tile_loc=[]
     i_tile=0
-    essential_workers=[]
-    essential_work_sites=[]
-    essential_site_idxs = [i for i in range(len(site_type)) if site_type[i]==essential_type]
-    
+
+    worker_types=[]
     for _, t in tiles.iterrows():
         lat=t['lat']
         lon=t['lon']
@@ -161,13 +159,11 @@ def generate_population(bbox, population_per_age_group, density_file=None, tile_
         new_people_ages=list(np.random.multinomial(n=1, pvals=age_proportions, size=pop).argmax(axis=1))
         people_age+=new_people_ages
         i_tile+=1
-        if essential_prop_per_age_group is not None:
-            new_essential_workers =[(np.random.rand()<essential_prop_per_age_group[new_people_ages[i]]) for i in range(len(new_people_ages))]
-            essential_workers += new_essential_workers
-            essential_work_sites += [np.random.choice(essential_site_idxs) if (new_essential_workers[i]==True) else -1 for i in range(len(new_people_ages))]
+
+        if (essential_prop_per_age_group is not None) and (num_worker_types is not None):
+            worker_types+=[np.random.choice(num_worker_types) if (np.random.rand()<essential_prop_per_age_group[new_people_ages[i]]) else -1 for i in range(len(new_people_ages))]
         else:
-            essential_workers+=[False for i in range(len(new_people_ages))]
-            essential_work_sites = None
+            worker_types+=[-1 for i in range(len(new_people_ages))]
 
     if household_info is not None:
         # pick a societal role for each person depending on the age group
@@ -267,7 +263,7 @@ def generate_population(bbox, population_per_age_group, density_file=None, tile_
         # set all people as independent 1-person families
         people_household = np.array([i for i in range(len(home_loc))])
 
-    return home_loc, people_age, home_tile, tile_loc, people_household, essential_workers, essential_work_sites
+    return home_loc, people_age, home_tile, tile_loc, people_household, worker_types
 
 def overpass_query(bbox, contents):
     overpass_bbox = str((bbox[0],bbox[2],bbox[1],bbox[3]))
@@ -386,6 +382,16 @@ def generate_sites(bbox, query_files, sites_path, site_based_density_file=None):
             
 
     return site_loc, site_type, site_dict, density_site_loc
+
+def assign_work_sites(worker_types, site_type):
+    # TODO get rid of hard-coded San Francisco site types
+    education_work_sites = [i for i in range(len(site_type)) if site_type[i]==0]
+    office_work_sites = [i for i in range(len(site_type)) if site_type[i]==1]
+    social_work_sites = [i for i in range(len(site_type)) if site_type[i]==2]
+    supermarket_work_sites = [i for i in range(len(site_type)) if site_type[i]==3]
+    work_sites = {0: education_work_sites, 1: office_work_sites, 2: social_work_sites, 3: supermarket_work_sites, -1: [-1]}
+    worker_work_sites = [np.random.choice(work_sites[worker_types[i]]) for i in range(len(worker_types))]
+    return worker_work_sites
 
 def compute_distances(site_loc, tile_loc):
     

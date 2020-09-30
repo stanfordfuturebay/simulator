@@ -53,7 +53,7 @@ if __name__ == '__main__':
                         help="Site infectivity parameter for all site types") # TODO set different betas for each site type
     parser.add_argument('--beta_household', type=float, default=0.0,
                         help="Infectivity within a household")
-    parser.add_argument('--worker_type',choices=['education','office','social','supermarket'],required=True,
+    parser.add_argument('--worker_type',choices=['education','office','social','supermarket','multi'],required=True,
                         help="Which type of essential worker to include in model, at specified percentage of population")
     parser.add_argument('--essential_pct',type=int,default=60,
                        help="Proportion of total population to set to be essential workers of type --worker_type")
