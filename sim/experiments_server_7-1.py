@@ -170,7 +170,8 @@ if __name__ == '__main__':
     testing_params_SD_6['test_smart_delta'] = 24.0 * 3     # time window considered for inspecting contacts
     testing_params_SD_6['test_smart_action'] = 'isolate'
     testing_params_SD_6['test_targets'] = 'isym'
-    testing_params_SD_6['test_smart_num_contacts'] = 5
+    testing_params_SD_6['unlimited_tracing'] = False
+    testing_params_SD_6['test_smart_num_contacts'] = 5 # this is used only when unlimited_tracing is False
     testing_params_SD_6['trace_friends_only'] = True
     testing_params_SD_6['trace_household_members'] = True
     isolation_days_SD_6 = 7  # how many days selected people have to stay in isolation

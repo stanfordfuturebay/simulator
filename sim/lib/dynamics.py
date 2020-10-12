@@ -333,6 +333,7 @@ class DiseaseModel(object):
         self.test_smart_delta    = testing_params['test_smart_delta']
         self.test_smart_num_contacts   = testing_params['test_smart_num_contacts']
         self.test_smart_duration = testing_params['test_smart_duration']
+        self.unlimited_tracing = testing_params['unlimited_tracing']
         self.trace_friends_only = testing_params['trace_friends_only']
         self.trace_household_members = testing_params['trace_household_members']
         
@@ -1219,9 +1220,12 @@ class DiseaseModel(object):
         
         # quarantine nodes for a 'self.test_smart_duration'
         max_contacts = len(contacts)
-        #for j in range(min(self.test_smart_num_contacts, max_contacts)):
-        # Zihan: add stochasticity to test_smart_num_contacts
-        for j in range(min(max(0,int(np.random.normal(self.test_smart_num_contacts, 1.0))), max_contacts)):
+        # Zihan: add stochasticity to test_smart_num_contacts; check if unlimited tracing
+        if self.unlimited_tracing:
+            num_people_traced = max_contacts
+        else:
+            num_people_traced = min(max(0,int(np.random.normal(self.test_smart_num_contacts, 1.0))), max_contacts)
+        for j in range(num_people_traced):
             contact = contacts.pop()
             if self.test_smart_action == 'isolate':
                 self.measure_list.start_containment(SocialDistancingForSmartTracing, t=t, j=contact)
