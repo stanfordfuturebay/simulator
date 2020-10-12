@@ -486,7 +486,7 @@ class SocialDistancingForSmartTracing(Measure):
 
 class SocialDistancingForSmartTracingHousehold(Measure):
     """
-    Social distancing measure. Isolate positive cases from household members. 
+    Social distancing measure. Isolate people isolated due to smart tracing from household members. 
     Each individual respects the measure with some probability.
     """
 
