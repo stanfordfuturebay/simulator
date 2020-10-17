@@ -140,6 +140,7 @@ class ParallelSummary(object):
         
         self.people_age = np.zeros((repeats, n_people), dtype='int')
         self.essential_workers = np.zeros((repeats, n_people), dtype='int')
+        self.worker_types = np.zeros((repeats, n_people), dtype='int')
 
         self.children_count_iasy = np.zeros((repeats, n_people), dtype='int')
         self.children_count_ipre = np.zeros((repeats, n_people), dtype='int')
@@ -172,6 +173,7 @@ def create_ParallelSummary_from_DiseaseModel(sim):
     '''Laura Hack'''
     if sim.mob.essential_workers is not None:
         summary.essential_workers[0, :] = sim.mob.essential_workers
+        summary.worker_types[0,:] = sim.mob.worker_types
         
     summary.children_count_iasy[0, :] = sim.children_count_iasy
     summary.children_count_ipre[0, :] = sim.children_count_ipre
@@ -207,6 +209,7 @@ def pp_launch(r, kwargs, distributions, params, initial_counts, testing_params, 
         'children_count_ipre': sim.children_count_ipre,
         'children_count_isym': sim.children_count_isym,
         'essential_workers': sim.mob.essential_workers,
+        'worker_types': sim.mob.worker_types,
         'num_expo_house': sim.num_expo_house,
         'num_expo_contact': sim.num_expo_contact,
         'is_traced': sim.is_traced,
@@ -287,5 +290,6 @@ def launch_parallel_simulations(mob_settings, distributions, random_repeats, cpu
         '''Laura Hack'''
         if result['essential_workers'] is not None:
             summary.essential_workers[r, :] = result['essential_workers']
+            summary.worker_types[r,:] = result['worker_types']
             
     return summary

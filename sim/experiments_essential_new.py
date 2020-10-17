@@ -12,6 +12,7 @@ from lib.measures import (
     ComplianceForAllMeasure,
     ComplianceForEssentialWorkers,
     SocialDistancingForNonEssential,
+    SocialDistancingForSmartTracingHousehold,
     Interval)
 from lib.data import collect_data_from_df
 from lib.plot import Plotter
@@ -54,7 +55,7 @@ if __name__ == '__main__':
                         help="Infectivity within a household")
     parser.add_argument('--worker_type',choices=['education','office','social','supermarket','multi'],required=True,
                         help="Which type of essential worker to include in model, at specified percentage of population")
-    parser.add_argument('--essential_pct',type=int,default=60,
+    parser.add_argument('--essential_pct',type=int,default=50,
                        help="Proportion of total population to set to be essential workers of type --worker_type")
     parser.add_argument('--downsample',type=int,default=100)
 #     parser.add_argument('--mob_settings', type=str, default='lib/mobility/San_Francisco_settings_100.pk', 
@@ -63,7 +64,6 @@ if __name__ == '__main__':
                         help="Set random seed for reproducibility")
     parser.add_argument('--area', type=str, default='SF')
     parser.add_argument('--country', type=str, default='US')
-    parser.add_argument('--p_compliances',type=float,nargs='*',default=[0.0,1.0])
     parser.add_argument('--mob_settings',type=str, default=None)
     args = parser.parse_args()
     print(args)
@@ -186,29 +186,82 @@ if __name__ == '__main__':
     duration_weeks_SD_6 = 12  # strategies tested for 12 weeks starting today
 
     summaries_ = dict()
-    for p in args.p_compliances:  
-        m = [SocialDistancingForSmartTracing(
-                t_window=Interval(*testing_params_SD_6['testing_t_window']),
-                p_stay_home=1.0,
-                test_smart_duration=24.0 * isolation_days_SD_6),
-             ComplianceForAllMeasure(
-                t_window=Interval(*testing_params_SD_6['testing_t_window']),
-                p_compliance=p)
-            ]
-        res = run(testing_params_SD_6, m, max_time_future, present_seeds)
-        summaries_[('random',p)] = res
-        print(f'Completed random {p}')
+    
+    # CT 0.0 compliance
+    policy = 'None'
+    p=0.0
+    m = [SocialDistancingForSmartTracing(
+            t_window=Interval(*testing_params_SD_6['testing_t_window']),
+            p_stay_home=1.0,
+            test_smart_duration=24.0 * isolation_days_SD_6),
+         ComplianceForAllMeasure(
+            t_window=Interval(*testing_params_SD_6['testing_t_window']),
+            p_compliance=p),
+         SocialDistancingForSmartTracingHousehold(
+            t_window=Interval(*testing_params_SD_6['testing_t_window']),
+            p_isolate=1.0,
+            test_smart_duration=24.0 * isolation_days_SD_6)
+        ]
+    res = run(testing_params_SD_6, m, max_time_future, present_seeds)
+    summaries_[(policy,p)] = res
+    print(f'Completed {policy} {p}')
+    
+    # CT 0.5 distributed randomly
+    policy = 'random'
+    p=0.5
+    m = [SocialDistancingForSmartTracing(
+            t_window=Interval(*testing_params_SD_6['testing_t_window']),
+            p_stay_home=1.0,
+            test_smart_duration=24.0 * isolation_days_SD_6),
+         ComplianceForAllMeasure(
+            t_window=Interval(*testing_params_SD_6['testing_t_window']),
+            p_compliance=p),
+         SocialDistancingForSmartTracingHousehold(
+            t_window=Interval(*testing_params_SD_6['testing_t_window']),
+            p_isolate=1.0,
+            test_smart_duration=24.0 * isolation_days_SD_6)         
+        ]
+    res = run(testing_params_SD_6, m, max_time_future, present_seeds)
+    summaries_[(policy,p)] = res
+    print(f'Completed {policy} {p}')
+    
+    # CT 0.5 distributed to essential workers first
+    policy = 'essential'
+    p=0.5
+    m = [SocialDistancingForSmartTracing(
+            t_window=Interval(*testing_params_SD_6['testing_t_window']),
+            p_stay_home=1.0,
+            test_smart_duration=24.0 * isolation_days_SD_6),
+         ComplianceForEssentialWorkers(
+            t_window=Interval(*testing_params_SD_6['testing_t_window']),
+            p_compliance=p),
+         SocialDistancingForSmartTracingHousehold(
+            t_window=Interval(*testing_params_SD_6['testing_t_window']),
+            p_isolate=1.0,
+            test_smart_duration=24.0 * isolation_days_SD_6)         
+        ]
+    res = run(testing_params_SD_6, m, max_time_future, present_seeds)
+    summaries_[(policy,p)] = res
+    print(f'Completed {policy} {p}')
+    
+    # CT 1.0 (distributed to everyone)
+    policy = 'None'
+    p=1.0
+    m = [SocialDistancingForSmartTracing(
+            t_window=Interval(*testing_params_SD_6['testing_t_window']),
+            p_stay_home=1.0,
+            test_smart_duration=24.0 * isolation_days_SD_6),
+         ComplianceForAllMeasure(
+            t_window=Interval(*testing_params_SD_6['testing_t_window']),
+            p_compliance=p),
+         SocialDistancingForSmartTracingHousehold(
+            t_window=Interval(*testing_params_SD_6['testing_t_window']),
+            p_isolate=1.0,
+            test_smart_duration=24.0 * isolation_days_SD_6)         
+        ]
+    res = run(testing_params_SD_6, m, max_time_future, present_seeds)
+    summaries_[(policy,p)] = res
+    print(f'Completed {policy} {p}')    
 
-        m = [SocialDistancingForSmartTracing(
-                t_window=Interval(*testing_params_SD_6['testing_t_window']),
-                p_stay_home=1.0,
-                test_smart_duration=24.0 * isolation_days_SD_6),
-             ComplianceForEssentialWorkers(
-                t_window=Interval(*testing_params_SD_6['testing_t_window']),
-                p_compliance=p)
-            ]
-        res = run(testing_params_SD_6, m, max_time_future, present_seeds)
-        summaries_[('essential',p)] = res
-        print(f'Completed essential {p}')
-                       
+    # save summary
     save_summary(summaries_, f'{args.outfile}.pk')
