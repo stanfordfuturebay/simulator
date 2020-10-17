@@ -56,42 +56,50 @@ def foo():
     return 3
 
 # proportion of all essential workers within each age group
-prop_essential_per_age_group = np.array([
-    0,   # 0-4
-    0,   # 5-14
-    .01,  # 15-19
-    .08,  # 20-24
-    .45,  # 25-44
-    .25,  # 45-59
-    .20, # 60-79
-    0])  # 
+# prop_essential_per_age_group = np.array([
+#     0,   # 0-4
+#     0,   # 5-14
+#     .01,  # 15-19
+#     .08,  # 20-24
+#     .45,  # 25-44
+#     .25,  # 45-59
+#     .20, # 60-79
+#     0])  # 
+essential_distribution = np.array([
+    0,      # 0-4
+    0,      # 5-14
+    0.0125,   # 15-19
+    0.0682,   # 20-24
+    0.4616,   # 25-44
+    0.3889,   # 45-59
+    0.0688,   # 60-79
+    0])     # 80+
 
 prop_population_per_age_group = (np.array(population_per_age_group) / float(sum(population_per_age_group)))
 
 def _essential_prop_per_age_group(prop_essential_total):
-    return (prop_essential_per_age_group*prop_essential_total) / prop_population_per_age_group
+    return (essential_distribution*prop_essential_total) / prop_population_per_age_group
 
 
-def _essential_mobility(wtype):
+def _essential_mobility(type):
     # site types: ['education', 'office', 'social', 'supermarket']
-    if wtype in ['education', 0]:
+    if type == 0: #wtype in ['education', 0]:
         essential_mob_rate_per_type = [5.0, 0.0, 3.6, 0.27]
-        essential_dur_mean_per_type = [5.0, 0.1, 0.64, 0.4]
-        essential_variety_per_type = [1, 1, 10, 2]
-    elif wtype in ['office',1]:
+        essential_dur_mean_per_type = [5.0, 0.0, 0.64, 0.4]
+#         essential_variety_per_type = [1, 1, 10, 2]
+    elif type == 1: #wtype in ['office',1]:
         essential_mob_rate_per_type = [0.0, 5.0, 3.6, 0.27]
-        essential_dur_mean_per_type = [0.1, 5.0, 0.64, 0.4]
-        essential_variety_per_type = [1, 1, 10, 2]
-    elif wtype in ['social',2]:
+        essential_dur_mean_per_type = [0.0, 5.0, 0.64, 0.4]
+#         essential_variety_per_type = [1, 1, 10, 2]
+    elif type == 2: # wtype in ['social',2]:
         essential_mob_rate_per_type = [0.0, 0.0, 5.0, 0.27]
-        essential_dur_mean_per_type = [0.1, 0.1, 5.0, 0.4]
-        essential_variety_per_type = [1, 1, 10, 2]
-    elif wtype in ['supermarket',3]:
+        essential_dur_mean_per_type = [0.0, 0.0, 5.0, 0.4]
+#         essential_variety_per_type = [1, 1, 10, 2]
+    elif type == 3: #wtype in ['supermarket',3]:
         essential_mob_rate_per_type = [0.0, 0.0, 3.6,  5.0]
-        essential_dur_mean_per_type = [0.1, 0.1, 0.64, 5.0]
-        essential_variety_per_type = [1, 1, 10, 2]
+        essential_dur_mean_per_type = [0.0, 0.0, 0.64, 5.0]
+#         essential_variety_per_type = [1, 1, 10, 2]
     else:
-        return None, None, None
-    return essential_mob_rate_per_type, essential_dur_mean_per_type, essential_variety_per_type
-    
+        return None, None
+    return essential_mob_rate_per_type, essential_dur_mean_per_type
     

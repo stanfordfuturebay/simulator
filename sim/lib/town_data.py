@@ -35,7 +35,7 @@ tile_level_dict = {
 }
 
 def generate_population(bbox, population_per_age_group, density_file=None, tile_level=16, seed=None,
-                        density_site_loc=None, household_info=None, essential_prop_per_age_group=None, site_type=None, essential_type=None):
+                        density_site_loc=None, household_info=None, essential_prop_per_age_group=None,site_type=None,essential_type=None):
     
     # raise error if tile level is invalid
     assert (type(tile_level)==int and tile_level>=0 and tile_level<=20), 'Invalid tile level'
@@ -142,8 +142,8 @@ def generate_population(bbox, population_per_age_group, density_file=None, tile_
     tile_loc=[]
     i_tile=0
     essential_workers=[]
-    essential_work_sites=[]
-    essential_site_idxs = [i for i in range(len(site_type)) if site_type[i]==essential_type]
+    num_essential_workers = 0
+    essential_work_site = []
     
     for _, t in tiles.iterrows():
         lat=t['lat']
@@ -161,13 +161,41 @@ def generate_population(bbox, population_per_age_group, density_file=None, tile_
         new_people_ages=list(np.random.multinomial(n=1, pvals=age_proportions, size=pop).argmax(axis=1))
         people_age+=new_people_ages
         i_tile+=1
+        
+#         if essential_prop_per_age_group is not None:
+#             essential_workers+=[(np.random.rand()<essential_prop_per_age_group[new_people_ages[i]]) for i in range(len(new_people_ages))]
+#         else:
+#             essential_workers+=[False for i in range(len(new_people_ages))]
+
         if essential_prop_per_age_group is not None:
-            new_essential_workers =[(np.random.rand()<essential_prop_per_age_group[new_people_ages[i]]) for i in range(len(new_people_ages))]
-            essential_workers += new_essential_workers
-            essential_work_sites += [np.random.choice(essential_site_idxs) if (new_essential_workers[i]==True) else -1 for i in range(len(new_people_ages))]
+            essential_site_ind = []
+            cum_prob_essential_workers_per_site = []
+            num_essential_type = 0
+            for i in range(len(site_type)):
+                if site_type[i]==essential_type:
+                    num_essential_type += 1
+                    essential_site_ind += [i]
+            prob_essential_workers_per_site = np.array([1/num_essential_type]*num_essential_type)
+            cum_prob_essential_workers_per_site.append(0)
+            cum_prob_essential_workers_per_site.extend(np.cumsum(prob_essential_workers_per_site))
+
+            for i in range(len(new_people_ages)):
+                a = np.random.rand()
+                for j in range(len(population_per_age_group)):
+                    if new_people_ages[i] == j:
+                        b = (a<essential_prop_per_age_group[j])
+                        essential_workers += [b]
+                if b:
+                    num_essential_workers += 1
+                    a = np.random.rand()
+                    for j in range(len(cum_prob_essential_workers_per_site)-1):
+                        if (a >= cum_prob_essential_workers_per_site[j]) and (a < cum_prob_essential_workers_per_site[j+1]):
+                            essential_work_site += [essential_site_ind[j]]
+                else:
+                    essential_work_site += [-10]
         else:
-            essential_workers+=[False for i in range(len(new_people_ages))]
-            essential_work_sites = None
+            essential_workers = None
+            essential_work_site = None
 
     if household_info is not None:
         # pick a societal role for each person depending on the age group
@@ -266,8 +294,11 @@ def generate_population(bbox, population_per_age_group, density_file=None, tile_
     else:
         # set all people as independent 1-person families
         people_household = np.array([i for i in range(len(home_loc))])
+    
+    is_traced = np.zeros((population+1), dtype=int)
+    is_traced_infectious = [None]*(population+1)
 
-    return home_loc, people_age, home_tile, tile_loc, people_household, essential_workers, essential_work_sites
+    return home_loc, people_age, home_tile, tile_loc, people_household, essential_workers, num_essential_workers, essential_work_site, is_traced, is_traced_infectious
 
 def overpass_query(bbox, contents):
     overpass_bbox = str((bbox[0],bbox[2],bbox[1],bbox[3]))

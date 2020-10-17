@@ -10,6 +10,7 @@ from lib.measures import (
     SocialDistancingForPositiveMeasure,
     SocialDistancingForPositiveMeasureHousehold,
     ComplianceForAllMeasure,
+    SocialDistancingForSmartTracingHousehold,
     Interval)
 from lib.data import collect_data_from_df
 from lib.plot import Plotter
@@ -40,22 +41,22 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--sim_days', type=int, default=84, 
                         help="Integer number of days to run simulation. Default 12 weeks (84 days).")
-    parser.add_argument('--outfile', type=str, default='summaries_SD_5', 
+    parser.add_argument('--outfile', type=str, default='tr_rp20_summaries_SD_5', 
                         help="Name (without extension) for output pickle file")
-    parser.add_argument('--num_workers',type=int, default=23, 
+    parser.add_argument('--num_workers',type=int, default=20, 
                         help="Number of parallel threads to run simultaneously, capped at (number of available CPUs - 1)")
-    parser.add_argument('--random_repeats',type=int, default=40, 
+    parser.add_argument('--random_repeats',type=int, default=20, 
                         help="Number of random realizations to run. Use at least 40 for stable results")
-    parser.add_argument('--beta',type=float, default=0.5, 
+    parser.add_argument('--beta',type=float, default=0.1, 
                         help="Site infectivity parameter for all site types") # TODO set different betas for each site type
-    parser.add_argument('--beta_household', type=float, default=0.5,
+    parser.add_argument('--beta_household', type=float, default=0.1,
                         help="Infectivity within a household")
-    parser.add_argument('--mob_settings', type=str, default='lib/mobility/Tubingen_settings_10.pk', 
+    parser.add_argument('--mob_settings', type=str, default='lib/mobility/San_Francisco_settings_ds200_type3_prop0.2.pk', 
                         help="Path to mobility settings pickle file")
     parser.add_argument('--seed', type=int, default=0,
                         help="Set random seed for reproducibility")
-    parser.add_argument('--area', type=str, default='TU')
-    parser.add_argument('--country', type=str, default='GER')
+    parser.add_argument('--area', type=str, default='SF')
+    parser.add_argument('--country', type=str, default='US')
     args = parser.parse_args()
     print(args)
     
@@ -136,6 +137,7 @@ if __name__ == '__main__':
 
             SocialDistancingForPositiveMeasureHousehold(
                 t_window=Interval(0.0, t), p_isolate=1.0)
+
         ]
         measure_list = MeasureList(measure_list)
 
@@ -164,17 +166,19 @@ if __name__ == '__main__':
 
     # ### 4.3.5. Effects  of compliance on the efficacy of isolation for smart  tracing strategies
     daily_increase = new_cases.sum(axis=1)[1:] - new_cases.sum(axis=1)[:-1]
-    testing_params_SD_6 = standard_testing(max_time_future, daily_increase)
+    testing_params_SD_6 = standard_testing(max_time_future, daily_increase*50)
     testing_params_SD_6['test_smart_delta'] = 24.0 * 3     # time window considered for inspecting contacts
     testing_params_SD_6['test_smart_action'] = 'isolate'
     testing_params_SD_6['test_targets'] = 'isym'
     testing_params_SD_6['test_smart_num_contacts'] = 25
     isolation_days_SD_6 = 7  # how many days selected people have to stay in isolation
     duration_weeks_SD_6 = 12  # strategies tested for 12 weeks starting today
+    print('testing capacity: ', daily_increase*50)
 
     summaries_SD_6 = dict()
 
     p_compliance = [0.0, 1.0]
+    lockdown_at_day = 20
 
     for policy in ['advanced']:
         summaries_ = []
@@ -186,13 +190,16 @@ if __name__ == '__main__':
                 t_window=Interval(*testing_params_SD_6['testing_t_window']),
                 p_stay_home=1.0,
                 test_smart_duration=24.0 * isolation_days_SD_6),
+                ComplianceForAllMeasure(
+                t_window=Interval(*testing_params_SD_6['testing_t_window']),
+                p_compliance=p),
                 SocialDistancingForSmartTracingHousehold(
                 t_window=Interval(*testing_params_SD_6['testing_t_window']),
                 p_isolate=1.0,
                 test_smart_duration=24.0 * isolation_days_SD_6),
-                ComplianceForAllMeasure(
-                t_window=Interval(*testing_params_SD_6['testing_t_window']),
-                p_compliance=p)
+                SocialDistancingForAllMeasure(
+                t_window = Interval(lockdown_at_day*TO_HOURS, max_time_future),
+                p_stay_home=0.1)
             ]
             res = run(testing_params_SD_6, m, max_time_future, present_seeds)
             summaries_.append(res)

@@ -10,8 +10,7 @@ from lib.measures import (
     SocialDistancingByAgeMeasure,
     SocialDistancingForPositiveMeasure,
     ComplianceForAllMeasure,
-    Interval,
-    SocialDistancingForSmartTracingHousehold)
+    Interval)
 from lib.data import collect_data_from_df
 from lib.plot import Plotter
 from lib.distributions import CovidDistributions
@@ -137,11 +136,7 @@ if __name__ == '__main__':
                 t_window=Interval(0.0, t), p_stay_home=1.0),
 
             SocialDistancingForPositiveMeasureHousehold(
-                t_window=Interval(0.0, t), p_isolate=1.0),
-            SocialDistancingForSmartTracingHousehold(
-                t_window=Interval(0.0,t), 
-                p_isolate=1.0,
-                test_smart_duration=24.0 * 7)
+                t_window=Interval(0.0, t), p_isolate=1.0)
         ]
         measure_list = MeasureList(measure_list)
 

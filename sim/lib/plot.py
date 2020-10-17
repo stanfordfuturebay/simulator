@@ -161,6 +161,12 @@ class Plotter(object):
             return (sim.state_started_at[state][r] - TEST_LAG <= t) & (sim.state_ended_at[state][r] - TEST_LAG > t)
         else:
             return (sim.state_started_at[state][r] <= t) & (sim.state_ended_at[state][r] > t)
+        
+    def __is_traced_at(self, sim, r, trace, t):
+        if trace == 'trace':
+            return (sim.trace_started_at[trace][r] - TEST_LAG <= t) & (sim.trace_ended_at[trace][r] - TEST_LAG > t)
+        else:
+            return (sim.trace_started_at[trace][r] <= t) & (sim.trace_ended_at[trace][r] > t)
 
     def __state_started_before(self, sim, r, state, t):
         if state == 'posi' or state == 'nega':
@@ -208,6 +214,19 @@ class Plotter(object):
         ts, means, stds = [], [], []
         for t in np.linspace(0.0, sim.max_time, num=acc, endpoint=True):
             restarts = [np.sum(self.__is_state_at(sim, r, state, t))
+                for r in range(sim.random_repeats)]
+            ts.append(t/TO_HOURS)
+            means.append(np.mean(restarts))
+            stds.append(np.std(restarts))
+        return np.array(ts), np.array(means), np.array(stds)
+    
+    def __comp_traced_over_time(self, sim, state, acc):
+        '''
+        Computes `state` variable over time [0, self.max_time] with given accuracy `acc
+        '''
+        ts, means, stds = [], [], []
+        for t in np.linspace(0.0, sim.max_time, num=acc, endpoint=True):
+            restarts = [np.sum(self.__is_state_at(sim, r, traced, t))
                 for r in range(sim.random_repeats)]
             ts.append(t/TO_HOURS)
             means.append(np.mean(restarts))
@@ -669,6 +688,108 @@ class Plotter(object):
         if NO_PLOT:
             plt.close()
         return
+    
+    
+    def compare_traced(self, sims, titles, figtitle='Title',
+        filename='compare_inf_0', figsize=(10, 10), errorevery=20, acc=1000, ymax=None,
+        lockdown_label='Lockdown', lockdown_at=None, lockdown_label_y=None,
+        show_positives=False, show_legend=True, legendYoffset=0.0, legend_is_left=False,
+        subplot_adjust=None, start_date='1970-01-01', first_one_dashed=False):
+
+        ''''
+        Plots total infections for each simulation, named as provided by `titles`
+        to compare different measures/interventions taken. Colors taken as defined in __init__, and
+        averaged over random restarts, using error bars for std-dev
+        '''
+        fig = plt.figure(figsize=figsize)
+        ax = fig.add_subplot(111)
+
+        for i in range(len(sims)):
+            if acc > sims[i].max_time:
+                acc = sims[i].max_time
+
+            ts, iasy_mu, iasy_sig = self.__comp_state_over_time(sims[i], 'iasy', acc)
+            _,  ipre_mu, ipre_sig = self.__comp_state_over_time(sims[i], 'ipre', acc)
+            _,  isym_mu, isym_sig = self.__comp_state_over_time(sims[i], 'isym', acc)
+            _,  posi_mu, posi_sig = self.__comp_state_over_time(sims[i], 'posi', acc)
+
+            # Convert x-axis into posix timestamps and use pandas to plot as dates
+            ts = days_to_datetime(ts, start_date=start_date)
+
+            line_xaxis = np.zeros(ts.shape)
+            line_infected = iasy_mu + ipre_mu + isym_mu
+            error_infected = np.sqrt(np.square(iasy_sig) + np.square(ipre_sig) + np.square(isym_sig))
+
+            # lines
+            if show_positives:
+                ax.errorbar(ts, line_infected, yerr=error_infected, label='[Infected] ' + titles[i], errorevery=errorevery,
+                           c=self.color_different_scenarios[i], linestyle='-')
+
+                T = posi_mu.shape[0]
+                ax.errorbar(ts, posi_mu, yerr=posi_sig, label='[Tested positive]', errorevery=errorevery,
+                            c=self.color_different_scenarios[i], linestyle='--', elinewidth=0.8)
+            else:
+
+
+                ax.errorbar(ts, line_infected, yerr=error_infected, label=titles[i], errorevery=errorevery, elinewidth=0.8,
+                    capsize=3.0, c=self.color_different_scenarios[i], linestyle='--' if i == 0 and first_one_dashed else '-')
+
+
+        # axis
+        # ax.set_xlim((0, np.max(ts)))
+        if ymax is None:
+            ymax = 1.5 * np.max(iasy_mu + ipre_mu + isym_mu)
+        ax.set_ylim((0, ymax))
+
+        # ax.set_xlabel('Days')
+        ax.set_ylabel('People')
+
+        if lockdown_at is not None:
+            lockdown_widget(lockdown_at, start_date,
+                            lockdown_label_y, ymax,
+                            lockdown_label, ax, xshift=0.5)
+
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+
+        # Only show ticks on the left and bottom spines
+        ax.yaxis.set_ticks_position('left')
+        ax.xaxis.set_ticks_position('bottom')
+
+        #set ticks every week
+        # ax.xaxis.set_major_locator(mdates.WeekdayLocator())
+        ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=2))
+        #set major ticks format
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
+        fig.autofmt_xdate(bottom=0.2, rotation=0, ha='center')
+
+        if show_legend:
+            # legend
+            if legend_is_left:
+                leg = ax.legend(loc='upper left', borderaxespad=0.5)
+            else:
+                leg = ax.legend(loc='upper right', borderaxespad=0.5)
+
+            if legendYoffset != 0.0:
+                # Get the bounding box of the original legend
+                bb = leg.get_bbox_to_anchor().inverse_transformed(ax.transAxes)
+
+                # Change to location of the legend.
+                bb.y0 += legendYoffset
+                bb.y1 += legendYoffset
+                leg.set_bbox_to_anchor(bb, transform = ax.transAxes)
+
+        subplot_adjust = subplot_adjust or {'bottom':0.14, 'top': 0.98, 'left': 0.12, 'right': 0.96}
+        plt.subplots_adjust(**subplot_adjust)
+
+        plt.savefig('plots/' + filename + '.png', format='png', facecolor=None,
+                    dpi=DPI, bbox_inches='tight')
+
+        if NO_PLOT:
+            plt.close()
+        return
+    
 
     def compare_total_fatalities_and_hospitalizations(self, sims, titles, figtitle=r'Hospitalizations and Fatalities',
                                  filename='compare_inf_0', figsize=(10, 10), errorevery=20, acc=1000, ymax=None, lockdown_at=None,

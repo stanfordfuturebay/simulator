@@ -139,15 +139,17 @@ class SocialDistancingForNonEssential(Measure):
             Maximum number of visits of an individual
         """
         # Sample the outcome of the measure for each visit of each individual
-        self.bernoulli_stay_at_home = np.array([[np.random.binomial(1, self.p_stay_home) if essential_workers[i]==False else 0 for j in range(n_visits)] for i in range(n_people)])
-        assert(self.bernoulli_stay_at_home.shape == (n_people, n_visits))
+#         self.bernoulli_stay_home = np.random.binomial(
+#             1, self.p_stay_home, size=(n_people, n_visits))
+        self.bernoulli_compliant = np.array([[np.random.binomial(1, self.p_stay_home) if essential_workers[i]==True else 0 for j in range(n_visits)] for i in range(n_people)])
+        assert(self.bernoulli_compliant.shape == (n_people, n_visits))
         self._is_init = True
 
     @enforce_init_run
     def is_contained(self, *, j, j_visit_id, t):
         """Indicate if individual `j` respects measure for visit `j_visit_id`
         """
-        is_home_now = self.bernoulli_stay_at_home[j, j_visit_id]
+        is_home_now = self.bernoulli_stay_home[j, j_visit_id]
         return is_home_now and self._in_window(t)
     
     @enforce_init_run
@@ -356,6 +358,66 @@ class SocialDistancingForPositiveMeasureHousehold(Measure):
             t < state_resi_started_at[j] and t < state_dead_started_at[j]): # not resistant or dead
             return p_isolate
         return 0.0
+
+class SocialDistancingForSmartTracingHousehold(Measure):
+    """
+    Social distancing measure. Isolate positive cases from household members. 
+    Each individual respects the measure with some probability.
+    """
+
+    def __init__(self, t_window, p_isolate, test_smart_duration):
+        """
+
+        Parameters
+        ----------
+        t_window : Interval
+            Time window during which the measure is active
+        p_isolate : float
+            Probability of respecting the measure, should be in [0,1]
+        """
+        # Init time window
+        super().__init__(t_window)
+        self.p_isolate = p_isolate
+        self.test_smart_duration = test_smart_duration
+        
+    def init_run(self, n_people):
+        """Init the measure for this run by sampling the outcome of each visit
+        for each individual
+
+        Parameters
+        ----------
+        n_people : int
+            Number of people in the population
+        """
+        # Sample the outcome of the measure for each visit of each individual
+        self.bernoulli_isolate = np.random.binomial(
+            1, self.p_isolate, size=(n_people))
+        self.intervals_isolate = [InterLap() for _ in range(n_people)]
+        self._is_init = True
+
+        
+    @enforce_init_run
+    def is_contained(self, *, j, t):
+        """Indicate if individual `j` respects measure 
+        """
+        if self._in_window(t) and self.bernoulli_isolate[j]:
+            for interval in self.intervals_isolate[j].find((t,t)):
+                return True
+        return False
+
+    def start_containment(self, *, j, t):
+        self.intervals_isolate[j].update([(t, t + self.test_smart_duration)])
+
+    @enforce_init_run
+    def is_contained_prob(self, *, j, t, state_posi_started_at, state_posi_ended_at, state_resi_started_at, state_dead_started_at):
+        """Returns probability of containment for individual `j` at time `t`
+        """
+        if (self._in_window(t) and 
+            t >= state_posi_started_at[j] and t <= state_posi_ended_at[j] and # positive
+            t < state_resi_started_at[j] and t < state_dead_started_at[j]): # not resistant or dead
+            return p_isolate
+        return 0.0
+ 
             
 class SocialDistancingByAgeMeasure(Measure):
     """
@@ -484,59 +546,6 @@ class SocialDistancingForSmartTracing(Measure):
                 return self.p_stay_home
         return 0.0
 
-class SocialDistancingForSmartTracingHousehold(Measure):
-    """
-    Social distancing measure. Isolate positive cases from household members. 
-    Each individual respects the measure with some probability.
-    """
-
-    def __init__(self, t_window, p_isolate, test_smart_duration):
-        """
-
-        Parameters
-        ----------
-        t_window : Interval
-            Time window during which the measure is active
-        p_isolate : float
-            Probability of respecting the measure, should be in [0,1]
-        """
-        # Init time window
-        super().__init__(t_window)
-        self.p_isolate = p_isolate
-        self.test_smart_duration = test_smart_duration
-        
-    def init_run(self, n_people):
-        """Each individual has a p_isolate chance of isolating from their household 
-        when told by SmartTracing
-        """
-        self.bernoulli_isolate = np.random.binomial(
-            1, self.p_isolate, size=(n_people))
-        self.intervals_isolate = [InterLap() for _ in range(n_people)]
-        self._is_init = True
-
-    @enforce_init_run
-    def is_contained(self, *, j, t):
-        """Indicate if individual `j` respects measure for visit `j_visit_id`
-        """
-        if self._in_window(t) and self.bernoulli_isolate[j]:
-            for interval in self.intervals_isolate[j].find((t, t)):
-                return True
-        return False
-
-    @enforce_init_run
-    def start_containment(self, *, j, t):
-        self.intervals_isolate[j].update([(t, t + self.test_smart_duration)])
-        return
-    
-    @enforce_init_run
-    def is_contained_prob(self, *, j, t):
-        """Returns probability of containment for individual `j` at time `t`
-        """
-        if self._in_window(t):
-            for interval in self.intervals_isolate[j].find((t, t)):
-                return self.p_isolate
-        return 0.0    
-    
 
 class SocialDistancingForKGroups(Measure):
     """
@@ -755,7 +764,7 @@ class ComplianceForEssentialWorkers(Measure):
             raise ValueError("`compliance` should be a non-negative float")
         self.p_compliance = p_compliance
 
-    def init_run(self, essential_workers):
+    def init_run(self, t_window, p_compliance): # essential_workers
         """Init the measure for this run by sampling the compliance of each individual
 
         Parameters
@@ -763,21 +772,34 @@ class ComplianceForEssentialWorkers(Measure):
         n_people : int
             Number of people in the population
         """
-        # Sample the outcome of the measure for each individual
-        n_people = len(essential_workers)
-        self.adjusted_p_compliance = self.p_compliance * (float(n_people)/essential_workers.sum())
+#         # Sample the outcome of the measure for each individual
+#         n_people = len(essential_workers)
+#         self.adjusted_p_compliance = self.p_compliance * (float(n_people)/essential_workers.sum())
         
-        if self.adjusted_p_compliance <= 1.0:
-            self.bernoulli_compliant = [np.random.binomial(1, self.adjusted_p_compliance) if essential_workers[i]==True else 0 for i in range(n_people)]
-        else:
-            non_essential_p_compliance = ((self.p_compliance * n_people)-essential_workers.sum()) / n_people
-            self.bernoulli_compliant = [1 if essential_workers[i]==True else np.random.binomial(1, non_essential_p_compliance) for i in range(n_people)]
-        self._is_init = True
+#         if self.adjusted_p_compliance <= 1.0:
+#             self.bernoulli_compliant = [np.random.binomial(1, self.adjusted_p_compliance) if essential_workers[i]==True else 0 for i in range(n_people)]
+#         else:
+#             non_essential_p_compliance = ((self.p_compliance * n_people)-essential_workers.sum()) / n_people
+#             self.bernoulli_compliant = [1 if essential_workers[i]==True else np.random.binomial(1, non_essential_p_compliance) for i in range(n_people)]
+#         self._is_init = True
+        
+         # Init time window
+        super().__init__(t_window)
+
+        # Init probability of respecting measure
+        if (not isinstance(p_compliance, float)) or (p_compliance < 0):
+            raise ValueError("`compliance` should be a non-negative float")
+        self.p_compliance = p_compliance
 
     @enforce_init_run
-    def is_compliant(self, *, j, t):
+    def is_compliant(self, *, j, t, essential_workers):
         """Indicate if individual `j` is compliant 
         """
+        if essential_workers[j]:
+            self.bernoulli_compliant[j] = np.random.binomial(1, self.p_compliance, size=(1))
+        else:
+            self.bernoulli_compliant[j] = 0
+        
         return self.bernoulli_compliant[j] and self._in_window(t)
     
     def is_compliant_prob(self, *, j, t):
