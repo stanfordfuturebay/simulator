@@ -45,13 +45,13 @@ if __name__ == '__main__':
                         help="Name (without extension) for output pickle file")
     parser.add_argument('--num_workers',type=int, default=20, 
                         help="Number of parallel threads to run simultaneously, capped at (number of available CPUs - 1)")
-    parser.add_argument('--random_repeats',type=int, default=20, 
+    parser.add_argument('--random_repeats',type=int, default=40, 
                         help="Number of random realizations to run. Use at least 40 for stable results")
-    parser.add_argument('--beta',type=float, default=0.3, 
+    parser.add_argument('--beta',type=float, default=0.1, 
                         help="Site infectivity parameter for all site types") # TODO set different betas for each site type
-    parser.add_argument('--beta_household', type=float, default=0.3,
+    parser.add_argument('--beta_household', type=float, default=0.1,
                         help="Infectivity within a household")
-    parser.add_argument('--mob_settings', type=str, default='lib/mobility/debug_San_Francisco_settings_ds600_type3_prop0.2.pk', 
+    parser.add_argument('--mob_settings', type=str, default='lib/mobility/San_Francisco_settings_ds200_type3_prop0.2.pk', 
                         help="Path to mobility settings pickle file")
     parser.add_argument('--seed', type=int, default=0,
                         help="Set random seed for reproducibility")
