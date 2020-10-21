@@ -242,13 +242,14 @@ def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_ag
 
     for i in range(num_people):
         # use mobility rates of specific age group
-        mob_rate_per_type = mob_rate_per_age_per_type[people_age[i]]
+        i_mob_rate_per_type = mob_rate_per_age_per_type[people_age[i]]
+        i_dur_mean_per_type = dur_mean_per_type
         # use site distances from specific tiles
         site_dist = tile_site_dist[home_tile[i]]
         
         if essential_workers[i]==True:
-            mob_rate_per_type = essential_mob_rate_per_type
-            dur_mean_per_type = essential_dur_mean_per_type
+            i_mob_rate_per_type = essential_mob_rate_per_type
+            i_dur_mean_per_type = essential_dur_mean_per_type
         
         ## temp until merge laura/worker_types
         worker_type = essential_type if (essential_workers[i]==True) else -1
@@ -256,8 +257,8 @@ def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_ag
             indiv=i,
             max_time=max_time,
             site_type=site_type,
-            mob_rate_per_type=mob_rate_per_type,
-            dur_mean_per_type=dur_mean_per_type,
+            mob_rate_per_type=i_mob_rate_per_type,
+            dur_mean_per_type=i_dur_mean_per_type,
             delta=delta,
             variety_per_type=variety_per_type,
             site_dist=site_dist,
