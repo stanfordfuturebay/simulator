@@ -167,7 +167,53 @@ class DiseaseModel(object):
             'resi': np.inf * np.ones(self.n_people, dtype='float'),
             'dead': np.inf * np.ones(self.n_people, dtype='float'),
             'hosp': np.inf * np.ones(self.n_people, dtype='float'),
-        }   
+        }
+        
+        
+        self.is_traced =  {
+            'CT': 0 * np.ones(self.n_people, dtype='float'),
+            'posi_measure': 0 * np.ones(self.n_people, dtype='float')
+        }      
+        self.is_traced_state = {
+            'susc': np.zeros(self.n_people, dtype='float'),
+            'expo': np.zeros(self.n_people, dtype='float'),
+            'ipre': np.zeros(self.n_people, dtype='float'),
+            'isym': np.zeros(self.n_people, dtype='float'),
+            'iasy': np.zeros(self.n_people, dtype='float'),
+            'posi': np.zeros(self.n_people, dtype='float'),
+            'nega': np.zeros(self.n_people, dtype='float'),
+            'resi': np.zeros(self.n_people, dtype='float'),
+            'dead': np.zeros(self.n_people, dtype='float'),
+            'hosp': np.zeros(self.n_people, dtype='float'),
+        }
+        self.trace_started_at = {
+            'susc': [[] for i in range(self.n_people)],
+            'expo': [[] for i in range(self.n_people)],
+            'ipre': [[] for i in range(self.n_people)],
+            'isym': [[] for i in range(self.n_people)],
+            'iasy': [[] for i in range(self.n_people)],
+            'posi': [[] for i in range(self.n_people)],
+            'nega': [[] for i in range(self.n_people)],
+            'resi': [[] for i in range(self.n_people)],
+            'dead': [[] for i in range(self.n_people)],
+            'hosp': [[] for i in range(self.n_people)],
+            'posi_measure': [[] for i in range(self.n_people)],
+        }
+        self.trace_ended_at = {
+            'susc': [[] for i in range(self.n_people)],
+            'expo': [[] for i in range(self.n_people)],
+            'ipre': [[] for i in range(self.n_people)],
+            'isym': [[] for i in range(self.n_people)],
+            'iasy': [[] for i in range(self.n_people)],
+            'posi': [[] for i in range(self.n_people)],
+            'nega': [[] for i in range(self.n_people)],
+            'resi': [[] for i in range(self.n_people)],
+            'dead': [[] for i in range(self.n_people)],
+            'hosp': [[] for i in range(self.n_people)],
+            'posi_measure': [[] for i in range(self.n_people)],
+        }        
+        
+        
         self.outcome_of_test = np.zeros(self.n_people, dtype='bool')
 
         # infector of i
@@ -197,6 +243,12 @@ class DiseaseModel(object):
             for i in seeds_:
                 assert(self.was_initial_seed[i] == False)
                 self.was_initial_seed[i] = True
+                
+                for cur_state in self.legal_states:
+                    self.trace_ended_at[cur_state][i] = []
+                    self.trace_started_at[cur_state][i] = []
+                self.trace_ended_at['posi_measure'][i] = []
+                self.trace_started_at['posi_measure'][i] = []
                 
                 # inital exposed
                 if state == 'expo':
@@ -1030,6 +1082,18 @@ class DiseaseModel(object):
                 SocialDistancingForNonEssential, t=t,
                 j=i, j_visit_id=visit_id)
         )
+        
+        if self.measure_list.is_contained(
+                SocialDistancingForPositiveMeasure, t=t,
+                j=i, j_visit_id=visit_id, 
+                state_posi_started_at=self.state_started_at['posi'],
+                state_posi_ended_at=self.state_ended_at['posi'],
+                state_resi_started_at=self.state_started_at['resi'],
+                state_dead_started_at=self.state_started_at['dead']):
+            self.is_traced['posi_measure'][i] += 1
+            self.trace_started_at['posi_measure'][i].append(self.state_started_at['posi'])
+            self.trace_ended_at['posi_measure'][i].append(self.state_ended_at['posi'])
+            
         return is_home
     
     '''Zihan'''
@@ -1218,6 +1282,14 @@ class DiseaseModel(object):
                 self.measure_list.start_containment(SocialDistancingForSmartTracingHousehold, t=t, j=contact)
             if self.test_smart_action == 'test':
                 self.__apply_for_testing(t, contact)
+                
+            self.is_traced['CT'][contact] += 1
+            for cur_state in self.legal_states:
+                if self.state[cur_state][contact]:
+                    self.is_traced_state[cur_state][contact] += 1
+                    self.trace_started_at[cur_state][contact].append(t)
+                    self.trace_ended_at[cur_state][contact].append(t + self.test_smart_duration)
+                    
                 # TODO: does this go here? Will isolate j from household for test_smart_duration, even if j has 
                 # received a negative test result
                 #self.measure_list.start_containment(SocialDistancingForSmartTracingHousehold, t=t, j=contact)
