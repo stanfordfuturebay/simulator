@@ -192,7 +192,10 @@ if __name__ == '__main__':
                 test_smart_duration=24.0 * isolation_days_SD_6),
                 ComplianceForAllMeasure(
                 t_window=Interval(*testing_params_SD_6['testing_t_window']),
-                p_compliance=p)
+                p_compliance=p),
+                SocialDistancingForAllMeasure(
+                t_window = Interval(lockdown_at_day*TO_HOURS, max_time_future),
+                p_stay_home=0.1)                 
             ]
             res = run(testing_params_SD_6, m, max_time_future, present_seeds)
             summaries_.append(res)
