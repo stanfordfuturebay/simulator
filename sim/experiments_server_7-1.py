@@ -175,7 +175,8 @@ if __name__ == '__main__':
     summaries_SD_6 = dict()
 
     p_compliance = [0.0, 1.0]
-
+    lockdown_at_day = 20
+    
     for policy in ['advanced']:
         summaries_ = []
         testing_params_SD_6['smart_tracing'] = policy
