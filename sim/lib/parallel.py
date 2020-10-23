@@ -87,7 +87,51 @@ class ParallelSummary(object):
             'dead': np.inf * np.ones((repeats, n_people), dtype='float'),
             'hosp': np.inf * np.ones((repeats, n_people), dtype='float'),
         }
+       
+        self.is_traced =  {
+            'CT': np.zeros((repeats, n_people), dtype='float'),
+            'posi_measure': np.zeros((repeats, n_people), dtype='float')
+        }      
         
+        self.is_traced_state = {
+            'susc': np.zeros((repeats, n_people), dtype='float'),
+            'expo': np.zeros((repeats, n_people), dtype='float'),
+            'ipre': np.zeros((repeats, n_people), dtype='float'),
+            'isym': np.zeros((repeats, n_people), dtype='float'),
+            'iasy': np.zeros((repeats, n_people), dtype='float'),
+            'posi': np.zeros((repeats, n_people), dtype='float'),
+            'nega': np.zeros((repeats, n_people), dtype='float'),
+            'resi': np.zeros((repeats, n_people), dtype='float'),
+            'dead': np.zeros((repeats, n_people), dtype='float'),
+            'hosp': np.zeros((repeats, n_people), dtype='float'),
+        }
+        self.trace_started_at = {
+            'susc': [[[] for i in range(n_people)] for i in range(repeats)],
+            'expo': [[[] for i in range(n_people)] for i in range(repeats)],
+            'ipre': [[[] for i in range(n_people)] for i in range(repeats)],
+            'isym': [[[] for i in range(n_people)] for i in range(repeats)],
+            'iasy': [[[] for i in range(n_people)] for i in range(repeats)],
+            'posi': [[[] for i in range(n_people)] for i in range(repeats)],
+            'nega': [[[] for i in range(n_people)] for i in range(repeats)],
+            'resi': [[[] for i in range(n_people)] for i in range(repeats)],
+            'dead': [[[] for i in range(n_people)] for i in range(repeats)],
+            'hosp': [[[] for i in range(n_people)] for i in range(repeats)],
+            'posi_measure': [[[] for i in range(n_people)] for i in range(repeats)],
+        }
+        self.trace_ended_at = {
+            'susc': [[[] for i in range(n_people)] for i in range(repeats)],
+            'expo': [[[] for i in range(n_people)] for i in range(repeats)],
+            'ipre': [[[] for i in range(n_people)] for i in range(repeats)],
+            'isym': [[[] for i in range(n_people)] for i in range(repeats)],
+            'iasy': [[[] for i in range(n_people)] for i in range(repeats)],
+            'posi': [[[] for i in range(n_people)] for i in range(repeats)],
+            'nega': [[[] for i in range(n_people)] for i in range(repeats)],
+            'resi': [[[] for i in range(n_people)] for i in range(repeats)],
+            'dead': [[[] for i in range(n_people)] for i in range(repeats)],
+            'hosp': [[[] for i in range(n_people)] for i in range(repeats)],
+            'posi_measure': [[[] for i in range(n_people)] for i in range(repeats)],
+        }    
+    
         self.measure_list = []
         self.mob = []
         self.num_expo_contact = []
@@ -110,7 +154,14 @@ def create_ParallelSummary_from_DiseaseModel(sim):
         summary.state[code][0, :] = sim.state[code]
         summary.state_started_at[code][0, :] = sim.state_started_at[code]
         summary.state_ended_at[code][0, :] = sim.state_ended_at[code]
+        summary.is_traced_state[code][0,:] = sim.is_traced_state[code]
+        summary.trace_started_at[code][0,:] = sim.trace_started_at[code]
+        summary.trace_ended_at[code][0,:] = sim.trace_ended_at[code]
 
+    summary.is_traced['CT'][0] = sim.is_traced['CT']
+    summary.is_traced['posi_measure'][0] = sim.is_traced['posi_measure']
+    summary.trace_started_at['posi_measure'][0] = sim.trace_started_at['posi_measure']
+    summary.trace_ended_at['posi_measure'][0] = sim.trace_ended_at['posi_measure']        
     summary.measure_list.append(sim.measure_list)
     if STORE_MOB:
         summary.mob.append(sim.mob)
@@ -156,7 +207,11 @@ def pp_launch(r, kwargs, distributions, params, initial_counts, testing_params, 
         'children_count_isym': sim.children_count_isym,
         'essential_workers': sim.mob.essential_workers,
         'num_expo_house': sim.num_expo_house,
-        'num_expo_contact': sim.num_expo_contact
+        'num_expo_contact': sim.num_expo_contact,
+        'is_traced': sim.is_traced,
+        'is_traced_state': sim.is_traced_state,
+        'trace_started_at': sim.trace_started_at,
+        'trace_ended_at': sim.trace_ended_at
     }         
     if STORE_MOB:
         result['mob'] = sampled_contacts
@@ -205,7 +260,15 @@ def launch_parallel_simulations(mob_settings, distributions, random_repeats, cpu
             summary.state[code][r, :] = result['state'][code]
             summary.state_started_at[code][r, :] = result['state_started_at'][code]
             summary.state_ended_at[code][r, :] = result['state_ended_at'][code]
-        
+            summary.is_traced_state[code][r,:] = result['is_traced_state'][code]
+            summary.trace_started_at[code][r] = result['trace_started_at'][code]
+            summary.trace_ended_at[code][r] = result['trace_ended_at'][code]
+            
+        summary.is_traced['CT'][r] = result['is_traced']['CT']
+        summary.is_traced['posi_measure'][r] = result['is_traced']['posi_measure']
+        summary.trace_started_at['posi_measure'][r] = result['trace_started_at']['posi_measure']
+        summary.trace_ended_at['posi_measure'][r] = result['trace_ended_at']['posi_measure']            
+            
         summary.measure_list.append(result['measure_list'])
         
         summary.num_expo_house.append(result['num_expo_house'])
