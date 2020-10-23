@@ -46,16 +46,16 @@ if __name__ == '__main__':
                         help="Number of parallel threads to run simultaneously, capped at (number of available CPUs - 1)")
     parser.add_argument('--random_repeats',type=int, default=40, 
                         help="Number of random realizations to run. Use at least 40 for stable results")
-    parser.add_argument('--beta',type=float, default=0.5, 
+    parser.add_argument('--beta',type=float, default=0.1, 
                         help="Site infectivity parameter for all site types") # TODO set different betas for each site type
-    parser.add_argument('--beta_household', type=float, default=0.5,
+    parser.add_argument('--beta_household', type=float, default=0.1,
                         help="Infectivity within a household")
-    parser.add_argument('--mob_settings', type=str, default='lib/mobility/Tubingen_settings_10.pk', 
+    parser.add_argument('--mob_settings', type=str, default='lib/mobility/San_Francisco_settings_200_type0-1-2-3_20pct.pk', 
                         help="Path to mobility settings pickle file")
     parser.add_argument('--seed', type=int, default=0,
                         help="Set random seed for reproducibility")
-    parser.add_argument('--area', type=str, default='TU')
-    parser.add_argument('--country', type=str, default='GER')
+    parser.add_argument('--area', type=str, default='SF')
+    parser.add_argument('--country', type=str, default='US')
     args = parser.parse_args()
     print(args)
     
@@ -164,13 +164,14 @@ if __name__ == '__main__':
 
     # ### 4.3.5. Effects  of compliance on the efficacy of isolation for smart  tracing strategies
     daily_increase = new_cases.sum(axis=1)[1:] - new_cases.sum(axis=1)[:-1]
-    testing_params_SD_6 = standard_testing(max_time_future, daily_increase)
+    testing_params_SD_6 = standard_testing(max_time_future, daily_increase*50)
     testing_params_SD_6['test_smart_delta'] = 24.0 * 3     # time window considered for inspecting contacts
     testing_params_SD_6['test_smart_action'] = 'isolate'
     testing_params_SD_6['test_targets'] = 'isym'
     testing_params_SD_6['test_smart_num_contacts'] = 25
     isolation_days_SD_6 = 7  # how many days selected people have to stay in isolation
     duration_weeks_SD_6 = 12  # strategies tested for 12 weeks starting today
+    print('testing capacity: ', daily_increase*50)
 
     summaries_SD_6 = dict()
 
