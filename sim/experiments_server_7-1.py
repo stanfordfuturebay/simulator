@@ -164,7 +164,7 @@ if __name__ == '__main__':
 
     # ### 4.3.5. Effects  of compliance on the efficacy of isolation for smart  tracing strategies
     daily_increase = new_cases.sum(axis=1)[1:] - new_cases.sum(axis=1)[:-1]
-    testing_params_SD_6 = standard_testing(max_time_future, daily_increase)
+    testing_params_SD_6 = standard_testing(max_time_future, daily_increase*50)
     testing_params_SD_6['test_smart_delta'] = 24.0 * 3     # time window considered for inspecting contacts
     testing_params_SD_6['test_smart_action'] = 'isolate'
     testing_params_SD_6['test_targets'] = 'isym'
