@@ -35,7 +35,7 @@ tile_level_dict = {
 }
 
 def generate_population(bbox, population_per_age_group, density_file=None, tile_level=16, seed=None,
-                        density_site_loc=None, household_info=None, essential_prop_per_age_group=None, num_worker_types=None):
+                        density_site_loc=None, household_info=None, essential_prop_per_age_group=None, incl_worker_types=None):
     
     # raise error if tile level is invalid
     assert (type(tile_level)==int and tile_level>=0 and tile_level<=20), 'Invalid tile level'
@@ -160,8 +160,8 @@ def generate_population(bbox, population_per_age_group, density_file=None, tile_
         people_age+=new_people_ages
         i_tile+=1
 
-        if (essential_prop_per_age_group is not None) and (num_worker_types is not None):
-            worker_types+=[np.random.choice(num_worker_types) if (np.random.rand()<essential_prop_per_age_group[new_people_ages[i]]) else -1 for i in range(len(new_people_ages))]
+        if (essential_prop_per_age_group is not None) and (incl_worker_types is not None):
+            worker_types+=[np.random.choice(incl_worker_types) if (np.random.rand()<essential_prop_per_age_group[new_people_ages[i]]) else -1 for i in range(len(new_people_ages))]
         else:
             worker_types+=[-1 for i in range(len(new_people_ages))]
 

@@ -68,8 +68,20 @@ prop_essential_per_age_group = np.array([
 
 prop_population_per_age_group = (np.array(population_per_age_group) / float(sum(population_per_age_group)))
 
-def _essential_prop_per_age_group(prop_essential_total):
-    return (prop_essential_per_age_group*prop_essential_total) / prop_population_per_age_group
+# def _essential_prop_per_age_group(prop_essential_total):
+#     return (prop_essential_per_age_group*prop_essential_total) / prop_population_per_age_group
+
+def _essential_distribution():
+    ed = np.array([
+    0,      # 0-4
+    0,      # 5-14
+    0.0125,   # 15-19
+    0.0682,   # 20-24
+    0.4616,   # 25-44
+    0.3889,   # 45-59
+    0.0688,   # 60-79
+    0])     # 80+
+    return ed
 
 
 def _essential_mobility(wtype):
