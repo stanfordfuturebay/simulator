@@ -71,6 +71,8 @@ class DiseaseModel(object):
         
         self.people_household = mob.people_household
         self.households = mob.households
+        
+        self.social_graph = mob.social_graph
             
         assert(self.num_age_groups == self.fatality_rates_by_age.shape[0])
         assert(self.num_age_groups == self.p_hospital_by_age.shape[0])
@@ -383,6 +385,9 @@ class DiseaseModel(object):
         self.test_smart_delta    = testing_params['test_smart_delta']
         self.test_smart_num_contacts   = testing_params['test_smart_num_contacts']
         self.test_smart_duration = testing_params['test_smart_duration']
+        self.unlimited_tracing = testing_params['unlimited_tracing']
+        self.trace_friends_only = testing_params['trace_friends_only']
+        self.trace_household_members = testing_params['trace_household_members']
         
         # Set list of measures
         if not isinstance(measure_list, MeasureList):
@@ -1252,6 +1257,10 @@ class DiseaseModel(object):
         contacts = PriorityQueue()
         
         for j in valid_contacts:
+            # check if j is adj of infector
+            if self.trace_friends_only:
+                if j not in self.social_graph.adj[i]:
+                    continue
             # check compliance
             is_j_compliant = (self.measure_list.is_compliant(
                                 ComplianceForAllMeasure, t=t-self.test_smart_delta, j=j) or
@@ -1275,8 +1284,15 @@ class DiseaseModel(object):
         
         # quarantine nodes for a 'self.test_smart_duration'
         max_contacts = len(contacts)
-        for j in range(min(self.test_smart_num_contacts, max_contacts)):
+        # Zihan: add stochasticity to test_smart_num_contacts; check if unlimited tracing
+        if self.unlimited_tracing:
+            num_people_traced = max_contacts
+        else:
+            num_people_traced = min(max(0,int(np.random.normal(self.test_smart_num_contacts, 1.0))), max_contacts)
+        traced_contacts = [] # store people traced because of contact
+        for j in range(num_people_traced):
             contact = contacts.pop()
+            traced_contacts.append(contact)
             if self.test_smart_action == 'isolate':
                 self.measure_list.start_containment(SocialDistancingForSmartTracing, t=t, j=contact)
                 self.measure_list.start_containment(SocialDistancingForSmartTracingHousehold, t=t, j=contact)
@@ -1293,6 +1309,30 @@ class DiseaseModel(object):
                 # TODO: does this go here? Will isolate j from household for test_smart_duration, even if j has 
                 # received a negative test result
                 #self.measure_list.start_containment(SocialDistancingForSmartTracingHousehold, t=t, j=contact)
+        # Zihan: also isolate/test household members
+        if self.trace_household_members:
+            for j in self.households[self.people_household[i]]:
+                if j == i or j in traced_contacts: continue
+                # check compliance
+                is_j_compliant = (self.measure_list.is_compliant(
+                                    ComplianceForAllMeasure, t=t-self.test_smart_delta, j=j) or
+                                 self.measure_list.is_compliant(
+                                    ComplianceForEssentialWorkers, t=t-self.test_smart_delta, j=j))
+                # if j is not compliant, skip
+                if not is_j_compliant:
+                    continue
+                if self.test_smart_action == 'isolate':
+                    self.measure_list.start_containment(SocialDistancingForSmartTracing, t=t, j=j)
+                    self.measure_list.start_containment(SocialDistancingForSmartTracingHousehold, t=t, j=j)
+                if self.test_smart_action == 'test':
+                    self.__apply_for_testing(t, j)
+                
+                self.is_traced['CT'][j] += 1
+                for cur_state in self.legal_states:
+                    if self.state[cur_state][j]:
+                        self.is_traced_state[cur_state][j] += 1
+                        self.trace_started_at[cur_state][j].append(t)
+                        self.trace_ended_at[cur_state][j].append(t + self.test_smart_duration)
     
     # compute empirical survival probability of individual j due to node i at time t
     def __compute_empirical_survival_probability(self, t, i, j):
