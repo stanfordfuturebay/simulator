@@ -7,6 +7,7 @@ import numba
 import pickle
 import json
 import pdb
+import networkx as nx
 
 from interlap import InterLap
 
@@ -141,10 +142,12 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
 
     # Choose usual sites: Inversely proportional to squared distance among chosen type
     usual_sites=[]
+    work_site = -1 # record the work site / school site for each person
     for k in range(len(mob_rate_per_type)):
         usual_sites_k=[]
         if worker_type==k:
             usual_sites_k.append(worker_work_site)
+            work_site = worker_work_site
         else:
             # All sites of type k
             s_args = np.where(site_type == k)[0]
@@ -165,6 +168,9 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
                 if site not in usual_sites_k:
                     usual_sites_k.append(site)
                     done+=1
+                    if (k == 0 and mob_rate_per_type[0] >  mob_rate_per_type[1]) or \
+                       (k == 1 and mob_rate_per_type[0] <= mob_rate_per_type[1]): # student or office worker
+                        work_site = site
 
         usual_sites.append(usual_sites_k)
 
@@ -200,7 +206,7 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
         # Increment id
         id += 1
 
-    return data
+    return data, work_site
 
 # @numba.njit
 def _simulate_synthetic_mobility_traces(*, num_people, num_sites, max_time, home_loc, site_loc,
@@ -238,7 +244,7 @@ def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_ag
                             worker_work_sites):
     rd.seed(seed)
     np.random.seed(seed-1)
-    data, visit_counts = list(), list()
+    data, visit_counts, work_sites = list(), list(), list()
 
     for i in range(num_people):
         # use mobility rates of specific age group
@@ -251,7 +257,7 @@ def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_ag
             i_mob_rate_per_type = worker_mob_rate_per_types[worker_types[i]]
             i_dur_mean_per_type = worker_dur_mean_per_types[worker_types[i]]
         
-        data_i = _simulate_individual_real_trace(
+        data_i, work_site_i = _simulate_individual_real_trace(
             indiv=i,
             max_time=max_time,
             site_type=site_type,
@@ -266,8 +272,9 @@ def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_ag
 
         data.extend(data_i)
         visit_counts.append(len(data_i))
+        work_sites.append(work_site_i)
 
-    return data, visit_counts
+    return data, visit_counts, work_sites
 
 
 class MobilitySimulator:
@@ -321,7 +328,8 @@ class MobilitySimulator:
                 tile_site_dist=None, variety_per_type=None, people_household=None, downsample=None,
                 num_people=None, num_people_unscaled=None, num_sites=None, mob_rate_per_type=None,
                 dur_mean=None, num_age_groups=None, seed=None, verbose=False, worker_types=None,
-                worker_mob_rate_per_types=None, worker_dur_mean_per_types=None, worker_work_sites=None):
+                worker_mob_rate_per_types=None, worker_dur_mean_per_types=None, worker_work_sites=None,
+                social_graph=None, num_colleages=None):
         """
         delta : float
             Time delta to extend contacts
@@ -484,6 +492,9 @@ class MobilitySimulator:
 
             self.home_tile=np.array(home_tile)
             self.tile_site_dist=np.array(tile_site_dist)
+            
+            self.social_graph = social_graph
+            self.num_colleages = num_colleages
 
         else:
             raise ValueError('Provide more information for the generation of mobility data.')
@@ -568,7 +579,7 @@ class MobilitySimulator:
                 )
 
         elif self.mode == 'real':
-            all_mob_traces, self.visit_counts = _simulate_real_mobility_traces(
+            all_mob_traces, self.visit_counts, work_sites = _simulate_real_mobility_traces(
                 num_people=self.num_people,
                 max_time=max_time,
                 site_type=self.site_type,
@@ -584,6 +595,14 @@ class MobilitySimulator:
                 worker_mob_rate_per_types=self.worker_mob_rate_per_types,
                 worker_dur_mean_per_types=self.worker_dur_mean_per_types,
                 worker_work_sites=self.worker_work_sites)
+                
+            # update social graph for colleages/classmates
+            for s in set(work_sites):
+                if s == -1:
+                    continue
+                people_work_at_s = np.where(np.array(work_sites) == s)[0]
+                coworkers = [np.random.choice(people_work_at_s,size=2,replace=False) for i in range(len(people_work_at_s) * self.num_colleages)]
+                self.social_graph.add_edges_from(coworkers)
 
         # Group mobility traces per indiv 
         self.mob_traces = self._group_mob_traces(all_mob_traces)
