@@ -1300,11 +1300,19 @@ class DiseaseModel(object):
                 self.__apply_for_testing(t, contact)
                 
             self.is_traced['CT'][contact] += 1
+            cur_states = []
             for cur_state in self.legal_states:
                 if self.state[cur_state][contact]:
-                    self.is_traced_state[cur_state][contact] += 1
-                    self.trace_started_at[cur_state][contact].append(t)
-                    self.trace_ended_at[cur_state][contact].append(t + self.test_smart_duration)
+                    cur_states.append(cur_state)
+            if len(cur_states) > 1:
+                if 'posi' in cur_states:
+                    self.is_traced_state['posi'][contact] += 1
+                    self.trace_started_at['posi'][contact].append(t)
+                    self.trace_ended_at['posi'][contact].append(t + self.test_smart_duration)
+            else:
+                self.is_traced_state[cur_states[0]][contact] += 1
+                self.trace_started_at[cur_states[0]][contact].append(t)
+                self.trace_ended_at[cur_states[0]][contact].append(t + self.test_smart_duration)
                     
                 # TODO: does this go here? Will isolate j from household for test_smart_duration, even if j has 
                 # received a negative test result
