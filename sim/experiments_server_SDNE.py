@@ -134,10 +134,7 @@ if __name__ == '__main__':
                 t_window=Interval(0.0, t), p_stay_home=1.0),
 
             SocialDistancingForPositiveMeasureHousehold(
-                t_window=Interval(0.0, t), p_isolate=1.0),
-            SocialDistancingForNonEssential(
-            t_window=Interval(0.0,t),
-            p_stay_home=p)
+                t_window=Interval(0.0, t), p_isolate=1.0)
         ]
         measure_list = MeasureList(measure_list)
 
@@ -200,7 +197,10 @@ if __name__ == '__main__':
             test_smart_duration=24.0 * isolation_days_SD_6),
             ComplianceForAllMeasure(
             t_window=Interval(*testing_params_SD_6['testing_t_window']),
-            p_compliance=0.0)
+            p_compliance=0.0),
+            SocialDistancingForNonEssential(
+            t_window=Interval(0.0,max_time_future),
+            p_stay_home=p)
         ]
         res = run(testing_params_SD_6, m, max_time_future, present_seeds)
         summaries_.append(res)
