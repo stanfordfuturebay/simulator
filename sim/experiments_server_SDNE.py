@@ -198,7 +198,7 @@ if __name__ == '__main__':
             ComplianceForAllMeasure(
             t_window=Interval(*testing_params_SD_6['testing_t_window']),
             p_compliance=0.0),
-            SocialDistancingForNonEssential(
+            SocialDistancingForAllMeasure(
             t_window=Interval(0.0,max_time_future),
             p_stay_home=p)
         ]
