@@ -1129,7 +1129,10 @@ class DiseaseModel(object):
             j=i),
         self.measure_list.is_contained(
             UpperBoundCasesSocialDistancing, t=t,
-            j=i, j_visit_id=visit_id, t_pos_tests=self.t_pos_tests)]
+            j=i, j_visit_id=visit_id, t_pos_tests=self.t_pos_tests),
+        self.measure_list.is_contained(
+            SocialDistancingForNonEssential, t=t,
+            j=i, j_visit_id=visit_id)]
         
         is_home = (True in measures_effective_list)
         return is_home, measures_effective_list
