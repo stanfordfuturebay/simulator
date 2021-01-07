@@ -119,7 +119,9 @@ if __name__ == '__main__':
             'education': beta,
             'social': beta,
             'office': beta,
-            'supermarket': beta}, 
+            'supermarket': beta,
+            'home': 4.0 * beta
+            },
         'beta_household' : args.beta_household
     }
     print(f'inferred_params: {inferred_params}')
@@ -170,7 +172,7 @@ if __name__ == '__main__':
     testing_params_SD_6['test_smart_action'] = 'isolate'
     testing_params_SD_6['test_targets'] = 'isym'
     testing_params_SD_6['unlimited_tracing'] = False
-    testing_params_SD_6['test_smart_num_contacts'] = 5 # this is used only when unlimited_tracing is False
+    testing_params_SD_6['test_smart_num_contacts'] = 2 # this is used only when unlimited_tracing is False
     testing_params_SD_6['trace_friends_only'] = True
     testing_params_SD_6['trace_household_members'] = True
     isolation_days_SD_6 = 7  # how many days selected people have to stay in isolation
@@ -179,9 +181,9 @@ if __name__ == '__main__':
 
     summaries_SD_6 = dict()
 
-    p_compliance = [0.0, 1.0]
+    p_compliance = [0.0, 0.6, 1.0]
 
-    for policy in ['advanced']:
+    for policy in ['basic']:
         summaries_ = []
         testing_params_SD_6['smart_tracing'] = policy
 

@@ -127,7 +127,7 @@ def _simulate_individual_synthetic_trace(indiv, num_sites, max_time, home_loc, s
 
 # @numba.njit
 def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_type, dur_mean_per_type,
-                               variety_per_type, delta, site_dist, worker_work_site, worker_type):
+                               variety_per_type, delta, site_dist, worker_work_site, worker_type, friends, house_site, gather_invitation, will_gather, gather_max_size):
     """Simulate a mobility trace for one real individual in a given town (jit for speed)"""
     # Holds tuples of (time_start, time_end, indiv, site, duration)
     data = list()
@@ -148,6 +148,26 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
         if worker_type==k:
             usual_sites_k.append(worker_work_site)
             work_site = worker_work_site
+        elif k == 4:
+            if will_gather[indiv]:
+                # only include indiv's own home here. The visits to others' home are directly included to visits later.
+                usual_sites_k.append(house_site)
+#            s_args = np.where(site_type == k)[0]
+#            friends_houses ={} # dict of site -> person
+#            for friend in friends:
+#                if people_house_site[friend] not in friends_houses:
+#                    friends_houses[people_house_site[friend]] = friend
+#            # Number of discrete sites to choose from type k
+#            variety_k = min(variety_per_type[k], len(friends_houses))
+#            done = 0
+#            while (done < variety_k and len(s_args) > done):
+#                site = rd.choice(list(friends_houses.keys()))
+#                if site_type[site] != k:
+#                    raise ValueError("friend house not type 4")
+#                # Don't pick the same site twice
+#                if site not in usual_sites_k:
+#                    usual_sites_k.append(site)
+#                    done+=1
         else:
             # All sites of type k
             s_args = np.where(site_type == k)[0]
@@ -181,7 +201,11 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
 
         # Choose a site type
         # numba-stable/compatible way of np.random.choice (otherwise crashes)
-        k = np.searchsorted(np.cumsum(site_type_prob), np.random.random(), side="right")
+        num_friends_will_gather = np.sum(will_gather[friends])
+        while True:
+            k = np.searchsorted(np.cumsum(site_type_prob), np.random.random(), side="right")
+            if k != 4 or (will_gather[indiv] and num_friends_will_gather>0):
+                break
 
         # Choose a site among the usuals of type k
         site = np.random.choice(np.array(usual_sites[k]))
@@ -190,6 +214,19 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
         dur = rd.expovariate(1/dur_mean_per_type[k])
         if t + dur > max_time:
             break
+        
+        # Process home gathering
+#        trip_changed = False
+#        if [t, t + dur + delta] in house_visited[indiv]:
+#            trip_changed = True
+#            k = 4 # change type to house
+#            # change site and dur
+#            site = people_house_site[indiv] # host at home
+#            # Duration: Exponential
+#            dur = rd.expovariate(1/dur_mean_per_type[k])
+#            if t + dur > max_time:
+#                break
+        
         # Add visit namedtuple to list
         data.append(Visit(
             id=id,
@@ -199,6 +236,19 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
             indiv=indiv,
             site=site,
             duration=dur))
+
+        # Process home gathering
+        if k == 4:
+            num_invited = min(rd.randint(1, gather_max_size), num_friends_will_gather)
+            people_invited = np.random.choice(friends, size=num_invited, replace=False, p=will_gather[friends]*1.0/num_friends_will_gather)
+            for person in people_invited:
+                if [t, t + dur + delta] not in gather_invitation[person]: # avoid conflict in invitations
+                    gather_invitation[person].update([(t, t + dur + delta, site)])
+        
+#        # Process visit to others' houses
+#        # if the mob_trace of friends_houses[site] is already generated, it won't be changed so that this visit may not have any effect if friends_houses[site] is not hosting a gathering in this period
+#        if k == 4 and (not trip_changed):
+#            house_visited[friends_houses[site]].update([(t, t + dur + delta)])
         # Shift time to after visit influence (i.e. duration + delta)
         t += dur + delta
         # Shift time to next start of next visit
@@ -215,7 +265,7 @@ def _simulate_synthetic_mobility_traces(*, num_people, num_sites, max_time, home
     rd.seed(seed)
     np.random.seed(seed-1)
     data, visit_counts = list(), list()
-
+    
     for i in range(num_people):
 
         # use mobility rates of specific age group
@@ -241,12 +291,17 @@ def _simulate_synthetic_mobility_traces(*, num_people, num_sites, max_time, home
 def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_age, mob_rate_per_age_per_type,
                             dur_mean_per_type, home_tile, tile_site_dist, variety_per_type, delta, seed,
                             worker_types, worker_mob_rate_per_types, worker_dur_mean_per_types, 
-                            worker_work_sites):
+                            worker_work_sites,social_graph,people_house_site, will_gather, gather_max_size):
     rd.seed(seed)
     np.random.seed(seed-1)
     data, visit_counts, work_sites = list(), list(), list()
-
-    for i in range(num_people):
+    # Home gathering
+    gather_invitation = {i: InterLap() for i in range(num_people)}
+    # randomize the order of generating mob trace so that the invitations from low-index people do not dominate
+    people_lis = list(range(num_people))
+    rd.shuffle(people_lis)
+    for i in people_lis:
+    #for i in range(num_people):
         # use mobility rates of specific age group
         i_mob_rate_per_type = mob_rate_per_age_per_type[people_age[i]]
         i_dur_mean_per_type = dur_mean_per_type
@@ -267,14 +322,19 @@ def _simulate_real_mobility_traces(*, num_people, max_time, site_type, people_ag
             variety_per_type=variety_per_type,
             site_dist=site_dist,
             worker_work_site=worker_work_sites[i],
-            worker_type=worker_types[i]
+            worker_type=worker_types[i],
+            friends=[friend for friend in social_graph.adj[i]],
+            house_site=people_house_site[i],
+            gather_invitation=gather_invitation,
+            will_gather=will_gather,
+            gather_max_size=gather_max_size
         )
 
         data.extend(data_i)
         visit_counts.append(len(data_i))
         work_sites.append(work_site_i)
 
-    return data, visit_counts, work_sites
+    return data, visit_counts, work_sites, gather_invitation
 
 
 class MobilitySimulator:
@@ -329,7 +389,7 @@ class MobilitySimulator:
                 num_people=None, num_people_unscaled=None, num_sites=None, mob_rate_per_type=None,
                 dur_mean=None, num_age_groups=None, seed=None, verbose=False, worker_types=None,
                 worker_mob_rate_per_types=None, worker_dur_mean_per_types=None, worker_work_sites=None,
-                social_graph=None, num_colleages=None):
+                social_graph=None, num_colleages=None, people_house_site=None, refuse_gathering_rate=None, gather_max_size=None):
         """
         delta : float
             Time delta to extend contacts
@@ -454,6 +514,9 @@ class MobilitySimulator:
             
             if people_household is not None:
                 self.people_household = np.array(people_household)
+                self.people_house_site = np.array(people_house_site)
+                self.will_gather = np.random.rand(self.num_people) >= refuse_gathering_rate # boolean np array
+                self.gather_max_size = gather_max_size
             
                 # create dict of households, to retreive household members in O(1) during household infections
                 self.households = {}
@@ -579,7 +642,7 @@ class MobilitySimulator:
                 )
 
         elif self.mode == 'real':
-            all_mob_traces, self.visit_counts, work_sites = _simulate_real_mobility_traces(
+            all_mob_traces, self.visit_counts, work_sites, gather_invitation = _simulate_real_mobility_traces(
                 num_people=self.num_people,
                 max_time=max_time,
                 site_type=self.site_type,
@@ -594,7 +657,11 @@ class MobilitySimulator:
                 worker_types=self.worker_types,
                 worker_mob_rate_per_types=self.worker_mob_rate_per_types,
                 worker_dur_mean_per_types=self.worker_dur_mean_per_types,
-                worker_work_sites=self.worker_work_sites)
+                worker_work_sites=self.worker_work_sites,
+                social_graph=self.social_graph,
+                people_house_site=self.people_house_site,
+                will_gather=self.will_gather,
+                gather_max_size=self.gather_max_size)
                 
             # update social graph for colleages/classmates
             for s in set(work_sites):
@@ -605,8 +672,8 @@ class MobilitySimulator:
                 self.social_graph.add_edges_from(coworkers)
 
         # Group mobility traces per indiv 
-        self.mob_traces = self._group_mob_traces(all_mob_traces)
-        return all_mob_traces
+        self.mob_traces, all_mob_traces_updated = self._group_mob_traces_new(all_mob_traces, gather_invitation)
+        return all_mob_traces_updated
 
     def _find_contacts(self):
         """
@@ -743,6 +810,43 @@ class MobilitySimulator:
         for v in mob_traces:
             mob_traces_dict[v.indiv].update([v])
         return mob_traces_dict
+    
+    def _group_mob_traces_new(self, mob_traces, gather_invitation):
+        """Group `mob_traces` by individual and for faster queries.
+        Returns a dict of dict of Interlap of the form:
+
+            mob_traces_dict[i] = "Interlap of visits of indiv i"
+        """
+        mob_traces_dict = {i: InterLap() for i in range(self.num_people)}
+        all_mob_traces_updated = list()
+        ids = np.zeros(self.num_people, dtype=int)
+        for v in mob_traces:
+            if [v.t_from, v.t_to_shifted] not in gather_invitation[v.indiv]:
+                visit = Visit(id=ids[v.indiv],
+                        t_from=v.t_from,
+                        t_to_shifted=v.t_to_shifted,
+                        t_to=v.t_to,
+                        indiv=v.indiv,
+                        site=v.site,
+                        duration=v.duration)
+                mob_traces_dict[v.indiv].update([visit])
+                all_mob_traces_updated.append(visit)
+                ids[v.indiv] += 1
+        for i in gather_invitation:
+            # invitations received by each person
+            for invitation in gather_invitation[i]:
+                gather_visit = Visit(id=ids[i],
+                        t_from=invitation[0],
+                        t_to_shifted=invitation[1],
+                        t_to=invitation[1] - self.delta,
+                        indiv=i,
+                        site=invitation[2],
+                        duration=invitation[1]-invitation[0] - self.delta)
+                mob_traces_dict[i].update([gather_visit])
+                all_mob_traces_updated.append(gather_visit)
+                ids[i] += 1
+        self.visit_counts = list(ids)
+        return mob_traces_dict, all_mob_traces_updated
 
     def simulate(self, max_time, seed=None, dynamic_tracing=False):
         """

@@ -130,15 +130,15 @@ class Plotter(object):
 
 
         # sequential
-        # self.color_different_scenarios = [
-        #     # '#ffffcc',
-        #     '#c7e9b4',
-        #     '#7fcdbb',
-        #     '#41b6c4',
-        #     '#2c7fb8',
-        #     '#253494',
-        #     '#000000'
-        # ]
+        self.color_different_scenarios = [
+             #'#ffffcc',
+             '#c7e9b4',
+             #'#7fcdbb',
+             #'#41b6c4',
+             '#2c7fb8',
+             #'#253494',
+             '#000000'
+         ]
 
 
 
