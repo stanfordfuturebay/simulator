@@ -48,6 +48,8 @@ if __name__ == '__main__':
                         help="Number of random realizations to run. Use at least 40 for stable results")
     parser.add_argument('--beta',type=float, default=0.1, 
                         help="Site infectivity parameter for all site types") # TODO set different betas for each site type
+    parser.add_argument('--beta_home',type=float,
+                        help="Infectivity at home gatherings of friends")
     parser.add_argument('--beta_household', type=float, default=0.1,
                         help="Infectivity within a household")
     parser.add_argument('--mob_settings', type=str, default='lib/mobility/San_Francisco_settings_200_type0-1-2-3_20pct.pk', 
@@ -120,7 +122,7 @@ if __name__ == '__main__':
             'social': beta,
             'office': beta,
             'supermarket': beta,
-            'home': 4.0 * beta
+            'home': beta if not args.beta_home else args.beta_home
             },
         'beta_household' : args.beta_household
     }
