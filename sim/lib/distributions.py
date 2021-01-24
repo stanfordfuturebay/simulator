@@ -45,8 +45,12 @@ class CovidDistributions(object):
             self.p_hospital_by_age = np.array([0.155, 0.038, 0.028, 0.033, 0.054, 0.089, 0.178, 0.326, 0.29])
             self.fatality_rates_by_age = np.array([0, 0, 0, 0.001, 0.001, 0.005, 0.031, 0.111, 0.265])
         elif country == 'US':
-            self.p_hospital_by_age = np.array([0.051, 0.020, 0.069, 0.069, 0.091, 0.233, 0.538, 0.810]) # SF data: see model_input_summary
-            self.fatality_rates_by_age = np.array([0.0, 0.0, 0.0021, 0.0021, 0.0021, 0.0032, 0.0365, 0.2077]) # SF data: see SF_case_data.R  			 
+            ### Based on data till Jul 10:
+            #self.p_hospital_by_age = np.array([0.051, 0.020, 0.069, 0.069, 0.091, 0.233, 0.538, 0.810]) # SF data: see model_input_summary
+            #self.fatality_rates_by_age = np.array([0.0, 0.0, 0.0021, 0.0021, 0.0021, 0.0032, 0.0365, 0.2077]) # SF data: see model_input_summary
+            ### Based on data till Sept 11:
+            self.p_hospital_by_age = np.array([0.020, 0.019, 0.022, 0.022, 0.033, 0.085, 0.191, 0.295]) # SF data: see model_input_summary
+            self.fatality_rates_by_age = np.array([0.0, 4.98e-5, 6.63e-4, 8.02e-4, 2.24e-3, 1.43e-2, 6.17e-2, 2.37e-1]) # SF data: see model_input_summary
         else:
             raise NotImplementedError('Invalid country requested.')
 
