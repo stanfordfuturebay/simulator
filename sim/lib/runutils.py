@@ -4,6 +4,9 @@ import numpy as np
 import pandas as pd
 from lib.town_data import generate_population
 import pdb
+import dateutil
+import datetime
+from lib.measures import *
 
 #### Define standard testing parameters, same used for inference
 def standard_testing(max_time, daily_increase):
@@ -202,6 +205,43 @@ def make_summary_df_new(summary):
     df.loc['num_contacts', :] = num_contacts_uncontained_new(summary)     
     df.loc['pct_infected'] = df.loc['pct_infected'].apply('{:.1%}'.format)
     return df
+    
+    
+    
+def beta_mult_measures_from_csv(filename, start_date_str, sim_days):
+    site_typ_names = ['education','office','social','supermarket']
+    measures = []
+    start_date = dateutil.parser.parse(start_date_str)
+    end_date = start_date + datetime.timedelta(days=sim_days)
+    df = pd.read_csv(filename)
+#     print(df)
+    
+    for date_str in df['date'].unique():
+        date = dateutil.parser.parse(date_str)
+        if date < start_date or date > end_date:
+            continue
+        ticks = (date - start_date).days * 24
+        beta_mults = {}
+        for i in range(4):
+            site_type = site_typ_names[i]
+            row = df.loc[(df['date']==date_str) & (df['model_category']==site_type)]
+            beta_mults[site_typ_names[i]] = row['multiplier'].iloc[0]
+#             print(beta_mults[i])
+        beta_mults['home'] = 1.0
+        measure = BetaMultiplierMeasureByType(t_window=Interval(ticks,ticks+(24*7)), beta_multiplier=beta_mults)
+        measures.append(measure)
+    
+    return measures
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     
     
