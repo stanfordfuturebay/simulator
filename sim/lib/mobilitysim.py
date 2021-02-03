@@ -148,7 +148,7 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
         if worker_type==k:
             usual_sites_k.append(worker_work_site)
             work_site = worker_work_site
-        elif k == 4:
+        elif k == 5:
             if will_gather[indiv]:
                 # only include indiv's own home here. The visits to others' home are directly included to visits later.
                 usual_sites_k.append(house_site)
@@ -204,7 +204,7 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
         num_friends_will_gather = np.sum(will_gather[friends])
         while True:
             k = np.searchsorted(np.cumsum(site_type_prob), np.random.random(), side="right")
-            if k != 4 or (will_gather[indiv] and num_friends_will_gather>0):
+            if k != 5 or (will_gather[indiv] and num_friends_will_gather>0):
                 break
 
         # Choose a site among the usuals of type k
@@ -238,7 +238,7 @@ def _simulate_individual_real_trace(indiv, max_time, site_type, mob_rate_per_typ
             duration=dur))
 
         # Process home gathering
-        if k == 4:
+        if k == 5:
             num_invited = min(rd.randint(1, gather_max_size), num_friends_will_gather)
             people_invited = np.random.choice(friends, size=num_invited, replace=False, p=will_gather[friends]*1.0/num_friends_will_gather)
             for person in people_invited:
