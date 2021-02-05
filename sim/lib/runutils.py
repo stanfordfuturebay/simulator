@@ -208,13 +208,11 @@ def make_summary_df_new(summary):
     
     
     
-def beta_mult_measures_from_csv(filename, start_date_str, sim_days):
-    site_typ_names = ['education','office','social','supermarket']
+def beta_mult_measures_from_csv(filename, start_date_str, sim_days, site_dict):
     measures = []
     start_date = dateutil.parser.parse(start_date_str)
     end_date = start_date + datetime.timedelta(days=sim_days)
     df = pd.read_csv(filename)
-#     print(df)
     
     for date_str in df['date'].unique():
         date = dateutil.parser.parse(date_str)
@@ -222,11 +220,10 @@ def beta_mult_measures_from_csv(filename, start_date_str, sim_days):
             continue
         ticks = (date - start_date).days * 24
         beta_mults = {}
-        for i in range(4):
-            site_type = site_typ_names[i]
+        for i in range(len(site_dict)-1):    # exclude home gatherings
+            site_type = site_dict[i]
             row = df.loc[(df['date']==date_str) & (df['model_category']==site_type)]
-            beta_mults[site_typ_names[i]] = row['multiplier'].iloc[0]
-#             print(beta_mults[i])
+            beta_mults[site_type] = row['multiplier'].iloc[0]
         beta_mults['home'] = 1.0
         measure = BetaMultiplierMeasureByType(t_window=Interval(ticks,ticks+(24*7)), beta_multiplier=beta_mults)
         measures.append(measure)

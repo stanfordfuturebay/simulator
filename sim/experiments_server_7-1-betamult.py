@@ -142,7 +142,7 @@ if __name__ == '__main__':
                 t_window=Interval(0.0, t), p_isolate=1.0)
         ]
         
-        beta_mult_measures = beta_mult_measures_from_csv(args.beta_mult_csv,start_date_str=start_date,sim_days=args.sim_days)
+        beta_mult_measures = beta_mult_measures_from_csv(args.beta_mult_csv,start_date_str=start_date,sim_days=args.sim_days,site_dict=mob.site_dict)
         print("Beta Mult Measures")
         print(beta_mult_measures)
         measure_list += beta_mult_measures
