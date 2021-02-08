@@ -224,6 +224,7 @@ def beta_mult_measures_from_csv(filename, start_date_str, sim_days, site_dict):
             site_type = site_dict[i]
             row = df.loc[(df['date']==date_str) & (df['model_category']==site_type)]
             beta_mults[site_type] = row['multiplier'].iloc[0]
+        print(beta_mults)
         beta_mults['home'] = 1.0
         measure = BetaMultiplierMeasureByType(t_window=Interval(ticks,ticks+(24*7)), beta_multiplier=beta_mults)
         measures.append(measure)
@@ -231,7 +232,29 @@ def beta_mult_measures_from_csv(filename, start_date_str, sim_days, site_dict):
     return measures
 
     
+def pstay_home_measures_from_csv(filename, start_date_str, sim_days, site_dict):
+    measures = []
+    start_date = dateutil.parser.parse(start_date_str)
+    end_date = start_date + datetime.timedelta(days=sim_days)
+    ticks_dur = sim_days *24
+    df = pd.read_csv(filename)
     
+    for index, row in df.iterrows():
+        date_str = row['date']
+        date = dateutil.parser.parse(date_str)
+        start_ticks = (date - start_date).days * 24
+        end_ticks = start_ticks + (24*7)
+        
+        if start_ticks < 0: start_ticks = 0  # trim overlaps with beginning of range
+        if end_ticks <= 0: continue    # wholly before desired range
+        if start_ticks >= ticks_dur: continue    # wholly after desired range
+        
+        p_stay_home = (1.0 - row['multiplier'])
+        print(f'Initing p_stay_home={p_stay_home} for interval {date} - {date + datetime.timedelta(days=7)}')
+        measure = SocialDistancingForAllMeasure(t_window=Interval(start_ticks,end_ticks), p_stay_home=p_stay_home)
+        measures.append(measure)
+    
+    return measures    
     
     
     
