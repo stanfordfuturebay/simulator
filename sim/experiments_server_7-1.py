@@ -122,6 +122,7 @@ if __name__ == '__main__':
             'social': beta,
             'office': beta,
             'supermarket': beta,
+            'retail': beta,
             'home': beta if not args.beta_home else args.beta_home
             },
         'beta_household' : args.beta_household

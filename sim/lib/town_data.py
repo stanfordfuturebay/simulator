@@ -331,7 +331,7 @@ def generate_sites(bbox, query_files, sites_path, site_based_density_file=None):
             # read sites latitude and longitude
             locs_to_add=[]
             for site in data['elements']:
-                if s_type == "office" and spmkt == True:
+                if s_type == "retail" and spmkt == True:
                     if site in supermarkets_sites:
                         continue # skip sites included in the supermarket type.
                 if s_type == "office" and (site.get('tags').get('building:levels') != None or site.get('tags').get('height') != None):
@@ -387,9 +387,10 @@ def assign_work_sites(worker_types, site_type):
     # TODO get rid of hard-coded San Francisco site types
     education_work_sites = [i for i in range(len(site_type)) if site_type[i]==0]
     office_work_sites = [i for i in range(len(site_type)) if site_type[i]==1]
-    social_work_sites = [i for i in range(len(site_type)) if site_type[i]==2]
-    supermarket_work_sites = [i for i in range(len(site_type)) if site_type[i]==3]
-    work_sites = {0: education_work_sites, 1: office_work_sites, 2: social_work_sites, 3: supermarket_work_sites, -1: [-1]}
+    retail_work_sites = [i for i in range(len(site_type)) if site_type[i]==2]
+    social_work_sites = [i for i in range(len(site_type)) if site_type[i]==3]
+    supermarket_work_sites = [i for i in range(len(site_type)) if site_type[i]==4]
+    work_sites = {0: education_work_sites, 1: office_work_sites, 2: retail_work_sites, 3: social_work_sites, 4: supermarket_work_sites, -1: [-1]}
     worker_work_sites = [np.random.choice(work_sites[worker_types[i]]) for i in range(len(worker_types))]
     return worker_work_sites
 
