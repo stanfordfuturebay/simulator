@@ -52,7 +52,7 @@ if __name__ == '__main__':
                         help="Infectivity at home gatherings of friends")
     parser.add_argument('--beta_household', type=float, default=0.1,
                         help="Infectivity within a household")
-    parser.add_argument('--mob_settings', type=str, default='lib/mobility/San_Francisco_settings_100_type0-1-2-3_20pct_social_graph_homesite.pk', 
+    parser.add_argument('--mob_settings', type=str, default='lib/mobility/San_Francisco_settings_100_type0-1-2-3-4_20pct_social_graph_homesite.pk', 
                         help="Path to mobility settings pickle file")
     parser.add_argument('--seed', type=int, default=0,
                         help="Set random seed for reproducibility")
@@ -122,6 +122,7 @@ if __name__ == '__main__':
             'education': beta,
             'social': beta,
             'office': beta,
+            'retail': beta,
             'supermarket': beta,
             'home': beta if not args.beta_home else args.beta_home
             },
