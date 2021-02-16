@@ -228,7 +228,6 @@ def beta_mult_measures_from_csv(filename, start_date_str, sim_days, site_dict):
             beta_mults[site_type] = mult
             beta_home_mult += mult
         beta_mults['home'] = beta_home_mult / float(len(site_dict)-1)
-        print(beta_mults)
         measure = BetaMultiplierMeasureByType(t_window=Interval(ticks,ticks+(24*7)), beta_multiplier=beta_mults)
         measures.append(measure)
     
