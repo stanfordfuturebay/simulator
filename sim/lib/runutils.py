@@ -7,6 +7,7 @@ import pdb
 import dateutil
 import datetime
 from datetime import datetime, timedelta
+from lib.measures import *
 
 #### Define standard testing parameters, same used for inference
 def standard_testing(max_time, daily_increase):
