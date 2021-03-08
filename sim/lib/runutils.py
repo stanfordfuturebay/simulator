@@ -6,7 +6,7 @@ from lib.town_data import generate_population
 import pdb
 import dateutil
 import datetime
-from lib.measures import *
+from datetime import datetime, timedelta
 
 #### Define standard testing parameters, same used for inference
 def standard_testing(max_time, daily_increase):
@@ -237,7 +237,7 @@ def beta_mult_measures_from_csv(filename, start_date_str, sim_days, site_dict):
 def pstay_home_measures_from_csv(filename, start_date_str, sim_days, site_dict):
     measures = []
     start_date = dateutil.parser.parse(start_date_str)
-    end_date = start_date + datetime.timedelta(days=sim_days)
+    end_date = start_date + timedelta(days=sim_days)
     ticks_dur = sim_days *24
     df = pd.read_csv(filename)
     
@@ -252,7 +252,7 @@ def pstay_home_measures_from_csv(filename, start_date_str, sim_days, site_dict):
         if start_ticks >= ticks_dur: continue    # wholly after desired range
         
         p_stay_home = (1.0 - row['multiplier'])
-        print(f'Initing p_stay_home={p_stay_home} for interval {date} - {date + datetime.timedelta(days=7)}')
+        print(f'Initing p_stay_home={p_stay_home} for interval {date} - {date + timedelta(days=7)}')
         measure = SocialDistancingForAllMeasure(t_window=Interval(start_ticks,end_ticks), p_stay_home=p_stay_home)
         measures.append(measure)
     
