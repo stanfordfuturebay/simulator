@@ -621,8 +621,9 @@ def make_bayes_opt_functions(args):
                 SocialDistancingForPositiveMeasureHousehold(
                     t_window=Interval(0.0, max_time), p_isolate=1.0),
             ])
-            pstay_home_measures = pstay_home_measures_from_csv(args.pstay_home_csv,start_date_str=start_date,sim_days=args.sim_days,site_dict=mob.site_dict)
-            measure_list += pstay_home_measures
+            site_dict = {0: 'education', 1: 'office', 2: 'retail', 3: 'social', 4: 'supermarket'}
+            beta_mult_measures = beta_mult_measures_from_csv('data/beta_mult/beta_mult_sf.csv',start_date_str='2020-07-26',sim_days=90,site_dict=site_dict)
+            measure_list += beta_mult_measures
             kwargs['measure_list'] = measure_list
             kwargs['params'] = parr_to_pdict(params, measures_optimized=args.measures_optimized)
 
