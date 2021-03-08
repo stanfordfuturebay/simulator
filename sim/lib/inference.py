@@ -615,15 +615,16 @@ def make_bayes_opt_functions(args):
             Model parameters calibrated
             '''
             
-            measure_list = MeasureList([
+            measure_list = [
                 SocialDistancingForPositiveMeasure(
                     t_window=Interval(0.0, max_time), p_stay_home=1.0),
                 SocialDistancingForPositiveMeasureHousehold(
                     t_window=Interval(0.0, max_time), p_isolate=1.0),
-            ])
+            ]
             site_dict = {0: 'education', 1: 'office', 2: 'retail', 3: 'social', 4: 'supermarket'}
             beta_mult_measures = beta_mult_measures_from_csv('lib/data/beta_mult/beta_mult_sf.csv',start_date_str='2020-07-26',sim_days=90,site_dict=site_dict)
             measure_list += beta_mult_measures
+            measure_list = MeasureList(measure_list)
             kwargs['measure_list'] = measure_list
             kwargs['params'] = parr_to_pdict(params, measures_optimized=args.measures_optimized)
 
