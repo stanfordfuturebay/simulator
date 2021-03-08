@@ -211,7 +211,7 @@ def make_summary_df_new(summary):
 def beta_mult_measures_from_csv(filename, start_date_str, sim_days, site_dict):
     measures = []
     start_date = dateutil.parser.parse(start_date_str)
-    end_date = start_date + datetime.timedelta(days=sim_days)
+    end_date = start_date + timedelta(days=sim_days)
     df = pd.read_csv(filename)
     
     for date_str in df['date'].unique():
