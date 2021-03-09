@@ -87,7 +87,7 @@ class CalibrationLogger:
             ' current obj',
             ' diff']
 
-        if self.lockdown_optimized or testedposi_optimized:
+        if self.lockdown_optimized or self.testedposi_optimized:
             self.headers += [
                 '  p_home',
                 'b/educat',
