@@ -501,10 +501,10 @@ def make_bayes_opt_functions(args):
     initial_seeds = {
         'expo': 1,
         'ipre': 1,
-        'iasy': 0,
+        'iasy': 1,
         'isym_notposi': 1,
         'isym_posi': 1,
-        'resi_notposi': 0,
+        'resi_notposi': 1,
         'resi_posi': 0,
     }
     header.append('Initial seed counts : ' + str(initial_seeds))
