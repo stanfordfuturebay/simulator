@@ -78,7 +78,9 @@ if __name__ == '__main__':
     # logger
     logger = CalibrationLogger(
         filename=args.filename, 
-        measures_optimized=args.measures_optimized,
+        lockdown_optimized=args.lockdown_optimized,
+        testedposi_optimized=args.testedposi_optimized,
+        samebeta_optimized=args.samebeta_optimized,
         verbose=not args.not_verbose)
 
     # generate initial training data (either load or simulate)

@@ -36,11 +36,13 @@ from botorch.optim import gen_batch_initial_conditions
 from lib.inference_kg import qKnowledgeGradient, gen_one_shot_kg_initial_conditions
 from lib.distributions import CovidDistributions
 from lib.settings.calibration_settings_SF import (
-    settings_model_param_bounds, 
-    settings_measures_param_bounds, 
+    settings_model_params_bounds, 
+    settings_model_param_bounds,
+    settings_measures_params_bounds, 
     settings_testing_params,
     settings_optimized_town_params,
-    settings_lockdown_dates
+    settings_lockdown_dates,
+    beta_mult_csv,
 )
 
 from lib.data import collect_data_from_df
@@ -53,6 +55,7 @@ from lib.measures import (
     SocialDistancingForPositiveMeasureHousehold,
     Interval)
 
+from lib.runutils import beta_mult_measures_from_csv
 
 import warnings
 warnings.filterwarnings('ignore', category=BadInitialCandidatesWarning)
@@ -67,26 +70,32 @@ class CalibrationLogger:
     def __init__(
         self,
         filename,
-        measures_optimized,
+        lockdown_optimized,
+        testedposi_optimized,
+        samebeta_optimized,
         verbose
     ):
 
         self.dir = 'logs/'
         self.filename = filename
-        self.measures_optimized = measures_optimized
+        self.lockdown_optimized = lockdown_optimized
+        self.testedposi_optimized = testedposi_optimized
+        self.samebeta_optimized = samebeta_optimized
         self.headers = [
             'iter',
             '    best obj',
             ' current obj',
             ' diff']
 
-        if self.measures_optimized:
+        if self.lockdown_optimized or testedposi_optimized:
             self.headers += [
                 '  p_home',
                 'b/educat',
                 'b/social',
                 'b/office',
+                'b/retail',
                 'b/superm',
+                'b/homepa',
                 'b/househ',
             ]
         else:
@@ -94,7 +103,9 @@ class CalibrationLogger:
                 'b/educat',
                 'b/social',
                 'b/office',
+                'b/retail',
                 'b/superm',
+                'b/homepa',
                 'b/househ',
             ]
 
@@ -132,7 +143,35 @@ class CalibrationLogger:
         '''
         Writes lst to a .csv file
         '''
-        d = parr_to_pdict(theta, measures_optimized=self.measures_optimized)
+        d = parr_to_pdict(theta, lockdown_optimized=self.lockdown_optimized, testedposi_optimized=self.testedposi_optimized, samebeta_optimized=self.samebeta_optimized)
+        inferred_betas = d
+        if self.lockdown_optimized or self.testedposi_optimized:
+            d = {
+                 'p_stay_home':inferred_betas['p_stay_home'],
+                 'betas':{
+                         'education':inferred_betas['betas'],
+                         'social':inferred_betas['betas'],
+                         'office':inferred_betas['betas'],
+                         'retail':inferred_betas['betas'],
+                         'supermarket':inferred_betas['betas'],
+                         'home':inferred_betas['betas'],
+                         },
+                 'beta_household':inferred_betas['betas'],
+            }
+        elif self.samebeta_optimized:
+            d = {
+                 'betas':{
+                         'education':inferred_betas['betas'],
+                         'social':inferred_betas['betas'],
+                         'office':inferred_betas['betas'],
+                         'retail':inferred_betas['betas'],
+                         'supermarket':inferred_betas['betas'],
+                         'home':inferred_betas['betas'],
+                         },
+                 'beta_household':inferred_betas['betas'],
+            }
+
+
         fields = [
             f"{i:4.0f}",
             f"{best:12.4f}",
@@ -140,13 +179,15 @@ class CalibrationLogger:
             f"{case_diff:5.0f}",
         ]
 
-        if self.measures_optimized:
+        if self.lockdown_optimized or self.testedposi_optimized:
             fields += [
                 f"{d['p_stay_home']:8.4f}",
                 f"{d['betas']['education']:8.4f}",
                 f"{d['betas']['social']:8.4f}",
                 f"{d['betas']['office']:8.4f}",
+                f"{d['betas']['retail']:8.4f}",
                 f"{d['betas']['supermarket']:8.4f}",
+                f"{d['betas']['home']:8.4f}",
                 f"{d['beta_household']:8.4f}",
             ]
         else:
@@ -154,7 +195,9 @@ class CalibrationLogger:
                 f"{d['betas']['education']:8.4f}",
                 f"{d['betas']['social']:8.4f}",
                 f"{d['betas']['office']:8.4f}",
+                f"{d['betas']['retail']:8.4f}",
                 f"{d['betas']['supermarket']:8.4f}",
+                f"{d['betas']['home']:8.4f}",
                 f"{d['beta_household']:8.4f}",
             ]
 
@@ -235,54 +278,56 @@ def load_state(filename):
     return obj
 
 
-def pdict_to_parr(d, measures_optimized):
+def pdict_to_parr(d, lockdown_optimized,testedposi_optimized,samebeta_optimized):
     """Convert parameter dict to BO parameter tensor"""
-    if measures_optimized:
+    if lockdown_optimized or testedposi_optimized:
         arr = torch.stack([
             torch.tensor(d['p_stay_home']),
-            torch.tensor(d['betas']['education']),
-            torch.tensor(d['betas']['social']),
-            torch.tensor(d['betas']['office']),
-            torch.tensor(d['betas']['supermarket']),
-            torch.tensor(d['beta_household']),
+            torch.tensor(d['betas']),
         ])
         return arr
-
+    elif samebeta_optimized:
+        arr = torch.stack([
+           torch.tensor(d['betas']),
+        ])
+        return arr
     else:
         arr = torch.stack([
             torch.tensor(d['betas']['education']),
             torch.tensor(d['betas']['social']),
             torch.tensor(d['betas']['office']),
+            torch.tensor(d['betas']['retail']),
             torch.tensor(d['betas']['supermarket']),
+            torch.tensor(d['betas']['home']),
             torch.tensor(d['beta_household']),
         ])
         return arr
 
 
-def parr_to_pdict(arr, measures_optimized):
+def parr_to_pdict(arr, lockdown_optimized,testedposi_optimized,samebeta_optimized):
     """Convert BO parameter tensor to parameter dict"""
-    if measures_optimized:
+    if lockdown_optimized or testedposi_optimized:
         d = {
             'p_stay_home': arr[0].tolist(),
-            'betas': {
-                'education': arr[1].tolist(),
-                'social': arr[2].tolist(),
-                'office': arr[3].tolist(),
-                'supermarket': arr[4].tolist(),
-            },
-            'beta_household': arr[5].tolist(),
+            'betas':arr[1].tolist(),
         }
         return d
-
+    elif samebeta_optimized:
+        d = {
+            'betas':arr[0].tolist(),
+        }
+        return d
     else:
         d = {
             'betas': {
                 'education': arr[0].tolist(),
                 'social': arr[1].tolist(),
                 'office': arr[2].tolist(),
-                'supermarket': arr[3].tolist(),
-            },
-            'beta_household': arr[4].tolist(),
+        	'retail': arr[3].tolist(),
+                'supermarket': arr[4].tolist(),
+                'home': arr[5].tolist(),
+           },
+            'beta_household': arr[6].tolist(),
         }
         return d
 
@@ -361,10 +406,13 @@ def make_bayes_opt_functions(args):
     header = []
 
     # depending on mode, set parameter bounds 
-    if args.measures_optimized:
-        param_bounds = settings_measures_param_bounds
-    else:
+    if args.lockdown_optimized or args.testedposi_optimized:
+        param_bounds = settings_measures_params_bounds
+    elif args.samebeta_optimized:
         param_bounds = settings_model_param_bounds
+    else:
+        param_bounds = settings_model_params_bounds
+        
 
     # remember line executed
     header.append('=' * 100)
@@ -479,12 +527,12 @@ def make_bayes_opt_functions(args):
     n_days, n_age = new_cases.shape
     G_obs = torch.tensor(new_cases).reshape(n_days * n_age)  # flattened
 
-    sim_bounds = pdict_to_parr(param_bounds, measures_optimized=args.measures_optimized).T
+    sim_bounds = pdict_to_parr(param_bounds, lockdown_optimized=args.lockdown_optimized, testedposi_optimized=args.testedposi_optimized,samebeta_optimized=args.samebeta_optimized).T
 
     n_params = sim_bounds.shape[1]
 
     header.append(f'Parameters : {n_params}')
-    header.append('Parameter bounds: ' + str(parr_to_pdict(sim_bounds.T, measures_optimized=args.measures_optimized)))
+    header.append('Parameter bounds: ' + str(parr_to_pdict(sim_bounds.T,lockdown_optimized=args.lockdown_optimized, testedposi_optimized=args.testedposi_optimized,samebeta_optimized=args.samebeta_optimized)))
 
     # extract lockdown period
     sim_start_date = pd.to_datetime(args.start)
@@ -560,15 +608,14 @@ def make_bayes_opt_functions(args):
 
         # finalize settings based which parameters are calibrated
         kwargs = copy.deepcopy(launch_kwargs)
-        if args.measures_optimized:
+        '''
+        Measures are calibrated
+        '''
 
-            '''
-            Measures are calibrated
-            '''
+        measure_params = parr_to_pdict(params,lockdown_optimized=args.lockdown_optimized,testedposi_optimized=args.testedposi_optimized,samebeta_optimized=args.samebeta_optimized)
 
-            measure_params = parr_to_pdict(params, measures_optimized=args.measures_optimized)
-
-            # social distancing measures: calibration is only done for `SocialDistancingForAllMeasure` for now
+        # social distancing measures: calibration is only done for `SocialDistancingForAllMeasure` for now
+        if args.lockdown_optimized:
             measure_list_ = [
                 SocialDistancingForPositiveMeasure(
                     t_window=Interval(0.0, max_time), p_stay_home=1.0),
@@ -579,48 +626,96 @@ def make_bayes_opt_functions(args):
                                       TO_HOURS * days_until_lockdown_end),
                     p_stay_home=measure_params['p_stay_home']),
             ]
-            
-            # close sites if specified
-            if args.measures_close:
-                beta_multipliers = {'education': 1.0, 'social': 1.0,
-                               'office': 1.0, 'supermarket': 1.0}
-                for category in args.measures_close:
-                    if category in beta_multipliers.keys():
-                        beta_multipliers[category] = 0.0
-                    else:
-                        raise ValueError(f'Site type `{category}` passed in `--measures_close` is invalid.\n'
-                                         f'Available are {str(list(beta_multipliers.keys()))}')
-                
-                measure_list_.append(BetaMultiplierMeasureByType(
-                    t_window=Interval(TO_HOURS * days_until_lockdown_start,
-                                      TO_HOURS * days_until_lockdown_end),
-                    beta_multiplier=beta_multipliers
-                ))
-            
-            kwargs['measure_list'] = MeasureList(measure_list_)
-
-            # get optimized model paramters for this country and area
-            # calibrated_model_params = settings_optimized_town_params[args.country][args.area]
-            calibrated_model_params = measure_params
-            if calibrated_model_params is None:
-                raise ValueError(f'Cannot optimize measures for {args.country}-{args.area} because model parameters ' 
-                                  'have not been fitted yet. Set values in `calibration_settings.py`')
-            kwargs['params'] = calibrated_model_params
-
+        elif args.testedposi_optimized:
+            measure_list_ = [
+                SocialDistancingForPositiveMeasure(
+                    t_window=Interval(0.0, max_time), p_stay_home=measure_params['p_stay_home']),
+                SocialDistancingForPositiveMeasureHousehold(
+                    t_window=Interval(0.0, max_time), p_isolate=measure_params['p_stay_home']),
+            ]
+            beta_mult_measures = beta_mult_measures_from_csv(beta_mult_csv,start_date_str=data_start_date,sim_days=int(max_time/TO_HOURS),site_dict=mob.site_dict)
+            measure_list_ += beta_mult_measures
         else:
-
-            '''
-            Model parameters calibrated
-            '''
-            
-            kwargs['measure_list'] = MeasureList([
+            measure_list_ = [
                 SocialDistancingForPositiveMeasure(
                     t_window=Interval(0.0, max_time), p_stay_home=1.0),
                 SocialDistancingForPositiveMeasureHousehold(
                     t_window=Interval(0.0, max_time), p_isolate=1.0),
-            ])
+            ]
+            beta_mult_measures = beta_mult_measures_from_csv(beta_mult_csv,start_date_str=data_start_date,sim_days=int(max_time/TO_HOURS),site_dict=mob.site_dict)
+            measure_list_ += beta_mult_measures
+ 
+        
+        # close sites if specified
+        if args.measures_close:
+            beta_multipliers = {'education': 1.0, 'social': 1.0,
+                           'office': 1.0, 'supermarket': 1.0}
+            for category in args.measures_close:
+                if category in beta_multipliers.keys():
+                    beta_multipliers[category] = 0.0
+                else:
+                    raise ValueError(f'Site type `{category}` passed in `--measures_close` is invalid.\n'
+                                         f'Available are {str(list(beta_multipliers.keys()))}')
+                
+            measure_list_.append(BetaMultiplierMeasureByType(
+                t_window=Interval(TO_HOURS * days_until_lockdown_start,
+                                  TO_HOURS * days_until_lockdown_end),
+                beta_multiplier=beta_multipliers
+            ))
+            
+        kwargs['measure_list'] = MeasureList(measure_list_)
+        # get optimized model paramters for this country and area
+        # calibrated_model_params = settings_optimized_town_params[args.country][args.area]
+        calibrated_model_params = measure_params
+        inferred_betas = measure_params['betas']
+        if args.lockdown_optimized or args.testedposi_optimized:
+            inferred_betas = measure_params['betas']
+            calibrated_model_params = {
+                                       'p_stay_home':measure_params['p_stay_home'],
+                                       'betas':{
+                                            'education':inferred_betas, 
+                                            'social':inferred_betas, 
+                                            'office':inferred_betas, 
+                                            'retail':inferred_betas, 
+                                            'supermarket':inferred_betas, 
+                                            'home':inferred_betas, 
+                                       },
+                                       'beta_household':inferred_betas,
+            }
+        elif args.samebeta_optimized:
+            inferred_betas = measure_params['betas']
+            calibrated_model_params = {
+                                      'betas':{
+                                            'education':inferred_betas, 
+                                            'social':inferred_betas, 
+                                            'office':inferred_betas, 
+                                            'retail':inferred_betas, 
+                                            'supermarket':inferred_betas, 
+                                            'home':inferred_betas, 
+                                       },
+                                       'beta_household':inferred_betas,
+            }
 
-            kwargs['params'] = parr_to_pdict(params, measures_optimized=args.measures_optimized)
+
+        if calibrated_model_params is None:
+            raise ValueError(f'Cannot optimize measures for {args.country}-{args.area} because model parameters ' 
+                              'have not been fitted yet. Set values in `calibration_settings.py`')
+        kwargs['params'] = calibrated_model_params
+
+#        else:
+#
+#            '''
+#            Model parameters calibrated
+#            '''
+#            
+#            kwargs['measure_list'] = MeasureList([
+#                SocialDistancingForPositiveMeasure(
+#                    t_window=Interval(0.0, max_time), p_stay_home=1.0),
+#                SocialDistancingForPositiveMeasureHousehold(
+#                    t_window=Interval(0.0, max_time), p_isolate=1.0),
+#            ])
+#
+#            kwargs['params'] = parr_to_pdict(params, measures_optimized=args.measures_optimized)
 
 
         # run simulation in parallel,

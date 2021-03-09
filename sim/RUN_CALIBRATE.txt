@@ -1,1 +1,43 @@
-python3 calibrate_SF.py --country "US" --area "SF" --mob "lib/mobility/San_Francisco_settings_100.pk" --start "2020-03-04" --end "2020-04-24" --measures_optimized --measures_close education social office --filename calibartion_betas_phome
+##################################################################################################
+Simulations that:
+optimize: 1. p_stay_home for lockdown, and 2. same beta value for all site types;
+contain: SocialDistancingForAllMeasures(p_stay_home=optimized), SocialDistancingForPositiveMeasures(p_stay_home=1), SocialDistancingForPositiveHousehold(p_isolate=1). 
+Run the following:
+python3 calibrate_SF.py --country "US" --area "SF" --mob "lib/mobility/San_Francisco_settings_100_type0-1-2-3-4_20pct_social_graph_homesite_new_mob.pk" --start "2020-03-04" --end "2020-05-03" --lockdown_optimized
+##################################################################################################
+
+##################################################################################################
+Simulations that:
+optimize: 1. p_stay_home for tested positive and tested positive household, and 2. same beta value for all site types;
+contain: SocialDistancingForPositiveMeasures(p_stay_home=optimized), SocialDistancingForPositiveHousehold(p_isolate=optimized), BetaMultiplierMeasureByType. 
+Run the following:
+python3 calibrate_SF.py --country "US" --area "SF" --mob "lib/mobility/San_Francisco_settings_100_type0-1-2-3-4_20pct_social_graph_homesite_new_mob.pk" --start "2020-03-04" --end "2020-05-03" --testedposi_optimized
+##################################################################################################
+
+##################################################################################################
+Simulations that:
+optimize: 1. same beta value for all site types;
+contain: SocialDistancingForPositiveMeasures(p_stay_home=1), SocialDistancingForPositiveHousehold(p_isolate=1), BetaMultiplierMeasureByType. 
+Run the following:
+python3 calibrate_SF.py --country "US" --area "SF" --mob "lib/mobility/San_Francisco_settings_100_type0-1-2-3-4_20pct_social_graph_homesite_new_mob.pk" --start "2020-03-04" --end "2020-05-03" --samebeta_optimized
+##################################################################################################
+
+##################################################################################################
+Simulations that:
+optimize: 1. different beta values for different site types;
+contain: SocialDistancingForPositiveMeasures(p_stay_home=1), SocialDistancingForPositiveHousehold(p_isolate=1), BetaMultiplierMeasureByType. 
+Run the following:
+python3 calibrate_SF.py --country "US" --area "SF" --mob "lib/mobility/San_Francisco_settings_100_type0-1-2-3-4_20pct_social_graph_homesite_new_mob.pk" --start "2020-03-04" --end "2020-05-03"
+##################################################################################################
+
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. To change optimized parameters bounds: → lib/settings/calibration_settings_SF.py
+2. Lockdown dates only need to be changed when optimizing the lockdown p_stay_home: → lib/settings/calibration_settings_SF.py. If specifying testedposi_optimized or samebeta_optimized or do not specify, then lockdown dates do not matter in the simulations.
+3. To change the simulation numerical settings, e.g. how many repeats and how many cpus: →  lib/settings/calibration_settings_SF.py. Current defaults are: 100 repeats for bayopt (n_iterations); 10 random repeats for each simulation (simulation_roll_outs); 20 initial random evalutions (n_init_samples)
+4. initial seeds do not need to be specified. The program automatically calculates the seeds in: lib/inference.py in def gen_initial_seeds.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+

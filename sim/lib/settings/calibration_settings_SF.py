@@ -14,32 +14,41 @@ settings_data = {
 settings_simulation = {
     'n_init_samples': 20,  # initial random evaluations (use n_init_samples simulations results to initialize the model)
     'n_iterations': 100,  # iterations of BO (500 in original code)
-    'simulation_roll_outs': 40, # roll-outs done in parallel per parameter setting (number of random repeats in each iteration)
+    'simulation_roll_outs': 10, # roll-outs done in parallel per parameter setting (number of random repeats in each iteration)
     'cpu_count':  multiprocessing.cpu_count(), # cpus used for parallel computation
     'dynamic_tracing' : True,
 }
 
 # parameter bounds
+settings_measures_params_bounds = {
+    'p_stay_home':[0.0,1.0],
+    'betas':[0.02,0.1],
+}
 settings_model_param_bounds = {
+    'betas':[0.01,0.12],
+}
+settings_model_params_bounds = {
     'betas': {
         'education': [0.0, 0.2],
         'social': [0.0, 0.2],
         'office': [0.0, 0.2],
+        'retail': [0.0, 0.2],
         'supermarket': [0.0, 0.2],
+        'home': [0.0, 0.2],
     },
     'beta_household': [0.0, 0.2],
 }
 
-settings_measures_param_bounds = {
-    'p_stay_home': [0.0, 1.0],
-    'betas': {
-        'education': [0.0, 0.2],
-        'social': [0.0, 0.2],
-        'office': [0.0, 0.2],
-        'supermarket': [0.0, 0.2],
-    },
-    'beta_household': [0.0, 0.2],
-}
+#settings_measures_param_bounds = {
+#    'p_stay_home': [0.0, 1.0],
+#    'betas': {
+#        'education': [0.0, 0.2],
+#        'social': [0.0, 0.2],
+#        'office': [0.0, 0.2],
+#        'supermarket': [0.0, 0.2],
+#    },
+#    'beta_household': [0.0, 0.2],
+#}
 
 # set testing parameters
 settings_testing_params = {
@@ -56,6 +65,9 @@ settings_testing_params = {
     'test_targets': 'isym',
     'test_queue_policy': 'fifo',
     'smart_tracing': None,
+    'unlimited_tracing':False,
+    'trace_friends_only':False,
+    'trace_household_members':True
 }
 
 # BO acquisition function optimization (Knowledge gradient)
@@ -78,6 +90,8 @@ command_line_area_codes = {
 
 # optimized model parameters
 beta_dummy = 0.5
+
+beta_mult_csv = 'lib/data/beta_mult/beta_mult_sf.csv'
 
 settings_optimized_town_params = {
     'US':{

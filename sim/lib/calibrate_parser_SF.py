@@ -26,10 +26,14 @@ def make_calibration_parser():
         help="specify path to a BO state to be loaded as initial observations, e.g. 'logs/calibration_0_state.pk'")
 
     # SD tuning
-    parser.add_argument("--measures_optimized", action="store_true",
+    parser.add_argument("--lockdown_optimized", action="store_true",
         help="when passed, BO optimizes `p_stay_home` for SocialDistancingForAllMeasure at given starting date")
+    parser.add_argument("--testedposi_optimized", action="store_true",
+        help="when passed, BO optimizes `p_stay_home` for SocialDistancingForPositiveMeasure at given starting date")
     parser.add_argument("--measures_close", nargs="+", 
         help="when `--measures_optimized` is active, closes all site types passed after this argument")
+    parser.add_argument("--samebeta_optimized", action="store_true",
+        help="when passed, BO assumes that the transmission rate beta is the same at all site types")
  
 
     # data
