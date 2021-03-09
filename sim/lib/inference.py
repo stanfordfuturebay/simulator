@@ -497,7 +497,16 @@ def make_bayes_opt_functions(args):
     assert(int(testing_params['test_reporting_lag']) % 24 == 0)
 
     # generate initial seeds based on case numbers
-    initial_seeds = gen_initial_seeds(new_cases)
+#     initial_seeds = gen_initial_seeds(new_cases)
+    initial_seeds = {
+        'expo': 1,
+        'ipre': 1,
+        'iasy': 0,
+        'isym_notposi': 1,
+        'isym_posi': 0,
+        'resi_notposi': 0,
+        'resi_posi': 0,
+    }
     header.append('Initial seed counts : ' + str(initial_seeds))
 
     # in debug mode, shorten time of simulation, shorten time

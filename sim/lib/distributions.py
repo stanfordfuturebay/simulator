@@ -30,10 +30,10 @@ class CovidDistributions(object):
         self.R0 = 2.0 # for seeding
 
         # proportion of infections that are asymptomatic
-        self.alpha = 0.4
+        self.alpha = 0.2
 
         # Li et al (Science, 2020): "multiplicative factor reducing the transmission rate of unreported infected patients"
-        self.mu = 0.55
+        self.mu = 0.35
 
         self.lambda_0 = 0.0
 
