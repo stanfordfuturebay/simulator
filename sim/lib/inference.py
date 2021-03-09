@@ -503,7 +503,7 @@ def make_bayes_opt_functions(args):
         'ipre': 1,
         'iasy': 0,
         'isym_notposi': 1,
-        'isym_posi': 0,
+        'isym_posi': 1,
         'resi_notposi': 0,
         'resi_posi': 0,
     }
