@@ -197,6 +197,5 @@ if __name__ == '__main__':
     # scale back to simulation parameters (from unit cube parameters in BO)
     normalized_calibrated_params = train_theta[best_observed_idx]
     calibrated_params = unnormalize_theta(normalized_calibrated_params)
-    pprint.pprint(parr_to_pdict(calibrated_params, measures_optimized=args.measures_optimized))
-
+    pprint.pprint(parr_to_pdict(calibrated_params, lockdown_optimized=args.lockdown_optimized,testedposi_optimized=args.testedposi_optimized,samebeta_optimized=args.samebeta_optimized))
 
