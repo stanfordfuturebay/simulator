@@ -498,15 +498,29 @@ def make_bayes_opt_functions(args):
 
     # generate initial seeds based on case numbers
 #     initial_seeds = gen_initial_seeds(new_cases)
+
+### Wave 1 ####
+#     initial_seeds = {
+#         'expo': 1,
+#         'ipre': 1,
+#         'iasy': 0,
+#         'isym_notposi': 1,
+#         'isym_posi': 0,
+#         'resi_notposi': 0,
+#         'resi_posi': 0,
+#     }
+
+### Wave 2 ###
     initial_seeds = {
-        'expo': 1,
-        'ipre': 1,
-        'iasy': 0,
-        'isym_notposi': 1,
-        'isym_posi': 0,
-        'resi_notposi': 0,
-        'resi_posi': 0,
+        'expo': 32,
+        'ipre': 26,
+        'iasy': 5,
+        'isym_notposi': 26,
+        'isym_posi': 25,
+        'resi_notposi': 347,
+        'resi_posi': 617,
     }
+
     header.append('Initial seed counts : ' + str(initial_seeds))
 
     # in debug mode, shorten time of simulation, shorten time
