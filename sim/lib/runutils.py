@@ -214,7 +214,7 @@ def beta_mult_measures_from_csv(filename, start_date_str, sim_days, site_dict):
     end_date = start_date + datetime.timedelta(days=sim_days)
     df = pd.read_csv(filename)
     
-    for date_str in df['date'].unique():
+    for date_str in df['week_date'].unique():
         date = dateutil.parser.parse(date_str)
         if date < start_date or date > end_date:
             continue
@@ -223,7 +223,7 @@ def beta_mult_measures_from_csv(filename, start_date_str, sim_days, site_dict):
         beta_home_mult = 0
         for i in range(len(site_dict)-1):    # exclude home gatherings
             site_type = site_dict[i]
-            row = df.loc[(df['date']==date_str) & (df['model_category']==site_type)]
+            row = df.loc[(df['week_date']==date_str) & (df['model_category']==site_type)]
             mult = row['multiplier'].iloc[0]
             beta_mults[site_type] = mult
             beta_home_mult += mult
