@@ -34,7 +34,8 @@ def make_calibration_parser():
         help="when `--measures_optimized` is active, closes all site types passed after this argument")
     parser.add_argument("--samebeta_optimized", action="store_true",
         help="when passed, BO assumes that the transmission rate beta is the same at all site types")
- 
+    parser.add_argument("--wave", type=int, default=None,
+        help="when set to 1, 2, or 3, adjust initial seeds and parameter bounds")
 
     # data
     parser.add_argument("--mob", 

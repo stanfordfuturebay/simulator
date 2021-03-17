@@ -408,6 +408,16 @@ def make_bayes_opt_functions(args):
     # depending on mode, set parameter bounds 
     if args.lockdown_optimized or args.testedposi_optimized:
         param_bounds = settings_measures_params_bounds
+        if args.wave==1:
+            param_bounds = {
+                'p_stay_home':[0.0,1.0],
+                'betas':[0.02,0.1],
+            }
+        elif args.wave==2:
+            param_bounds = {
+                'p_stay_home':[0.0,1.0],
+                'betas':[0.005,0.09],
+            }  
     elif args.samebeta_optimized:
         param_bounds = settings_model_param_bounds
     else:
@@ -497,7 +507,28 @@ def make_bayes_opt_functions(args):
     assert(int(testing_params['test_reporting_lag']) % 24 == 0)
 
     # generate initial seeds based on case numbers
-    initial_seeds = gen_initial_seeds(new_cases)
+    if args.wave == 1:
+        initial_seeds = {
+            'expo': 1,
+            'ipre': 1,
+            'iasy': 0,
+            'isym_notposi': 1,
+            'isym_posi': 0,
+            'resi_notposi': 0,
+            'resi_posi': 0,
+        }
+    elif args.wave == 2:
+        initial_seeds = {
+            'expo': 32,
+            'ipre': 26,
+            'iasy': 5,
+            'isym_notposi': 26,
+            'isym_posi': 25,
+            'resi_notposi': 347,
+            'resi_posi': 617,
+        }
+    else:
+        initial_seeds = gen_initial_seeds(new_cases)
     header.append('Initial seed counts : ' + str(initial_seeds))
 
     # in debug mode, shorten time of simulation, shorten time
